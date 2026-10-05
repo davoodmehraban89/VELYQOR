@@ -3,7 +3,7 @@
 Last updated: 2026-10-05
 
 ## Current phase
-Phase 1 — Market Domain & Data Proof started. Phase 0 PostgreSQL foundation is merged.
+Phase 1 — Market Data Integrity & Data Proof.
 
 ## Product scope locked for MVP
 - Iran free-market USD/IRT
@@ -16,49 +16,50 @@ Phase 1 — Market Domain & Data Proof started. Phase 0 PostgreSQL foundation is
 ## Architecture baseline
 - Modular monolith for MVP, with independently schedulable ingestion workers.
 - TypeScript/React/Next.js web application.
-- PostgreSQL is the only canonical database contract. Hosting provider is replaceable through `DATABASE_URL`.
-- Initial hosting target is Aiven Free PostgreSQL if it can be provisioned without payment credentials; Aiven is infrastructure only, never a domain dependency.
-- Supabase, Neon, Render and Railway are not architectural dependencies. They remain replaceable hosting alternatives.
-- Cloudflare is edge/runtime/cache/protection. Hyperdrive can front any compatible reachable PostgreSQL once credentials exist.
+- PostgreSQL is the canonical database contract; hosting is replaceable through `DATABASE_URL`.
+- Cloudflare is edge/runtime/cache/protection. Hyperdrive is configured only after a reachable PostgreSQL endpoint exists.
 - Provider adapters feed immutable raw observations, normalization, quality gates, candle construction, and derived-series calculation.
 - UTC canonical storage; Asia/Tehran presentation.
-- No UI timeframe may imply precision not supported by source data.
+- No UI timeframe may imply precision not supported by observed source cadence.
 
 ## Completed
-- Independent private GitHub repository established.
-- Phase 0 foundation merged to `main` with green CI.
-- Provider-neutral PostgreSQL market core merged to `main` with green CI.
-- Engineering rules, Definition of Done, architecture baseline and canonical market contracts established.
-- PostgreSQL migrations exist for instruments, providers, raw observations, normalized ticks, candles, derived values, data-quality events, users, workspaces and drawings.
-- Six canonical MVP instruments are seeded.
-- Database invariant test exists for canonical instruments and invalid OHLC rejection.
-- Cloudflare account connection verified.
-- Render Free PostgreSQL was tested and rejected for the current zero-cost constraint because provisioning required payment credentials.
+- Phase 0 foundation and provider-neutral PostgreSQL schema merged.
+- Canonical instruments, raw observations, ticks, candles, derived values, quality events, workspaces and drawings schema defined.
 - Deterministic theoretical 18K gold and premium calculations implemented.
-- Source timestamp alignment and staleness semantics implemented.
-- Provider normalization contract implemented, including IRR-to-IRT conversion and refusal to guess unsupported units.
-- Provider health contract implemented.
-- Deterministic market-data quality classification implemented for GOOD / DEGRADED / STALE / INVALID.
-- CI floating-point assertion defect was identified from workflow logs and corrected with tolerance-based numeric assertions.
+- Timestamp alignment, staleness, provider normalization and provider health implemented.
+- GOOD / DEGRADED / STALE / INVALID quality classification implemented.
+- Provider-neutral ingestion and derived-gold pipeline implemented.
+- Navasan adapters implemented for USD_IRT_FREE and GOLD18_IRT, including IRR→IRT normalization and historical daily OHLC parsing.
+- Alpha Vantage XAU/USD spot adapter implemented.
+- Data Proof metrics implemented for cadence, gaps, duplicates and out-of-order observations.
+- Provider source matrix documented.
+- Render Free PostgreSQL was tested and rejected because provisioning required payment credentials.
 
 ## In progress
-- Phase 1 provider research/data proof for USD/IRT, GOLD18/IRT and XAU/USD.
+- Deterministic multi-timeframe candle builder with no synthetic gap filling.
+- Numeric quality scoring and propagation into candles/derived data.
+- Live Data Proof for USD_IRT_FREE, GOLD18_IRT and XAU_USD.
 - Managed PostgreSQL provisioning on a no-card free provider.
-- Provider-specific adapters only after legal/technical source suitability is documented.
-- Integration of quality state with ingestion/candle pipeline.
+- Secondary legally usable Iranian source research for cross-check/failover.
 
-## External blocker
-A live VELYQOR PostgreSQL endpoint is not yet connected. This blocks executing migrations against production-like infrastructure, but it does not block domain implementation, deterministic tests, provider research, or application scaffolding.
+## External blockers
+1. No live VELYQOR PostgreSQL endpoint is connected, so production-like migration/invariant execution and Hyperdrive binding cannot yet be completed.
+2. Live provider credentials are not connected to the runtime, so real cadence/quota/freshness measurements cannot yet be completed.
+
+## Phase 1 exit gates
+1. PostgreSQL migrations and invariants execute successfully against a live reachable PostgreSQL instance.
+2. USD_IRT_FREE, GOLD18_IRT and XAU_USD each have a live tested ingestion path.
+3. Observed cadence, latency, gaps, duplicates, out-of-order behavior and failure/recovery are recorded for each source.
+4. Candle construction is deterministic and never invents missing observations.
+5. Quality state/score propagates into candles and derived values.
+6. At least one secondary legally usable reference is identified for Iranian market cross-check, or the lack of one is explicitly accepted as a launch risk.
+7. Secrets are runtime-only and absent from the repository.
+8. CI is green for all Phase 1 domain behavior.
 
 ## Risks
-- Iranian market-data provider licensing, timestamp quality, anti-bot restrictions, history and reliability.
-- UI timeframes must reflect actual observation frequency; synthetic precision is prohibited.
-- XAU/USD and USD/IRT source timestamps require explicit alignment/staleness thresholds.
+- Iranian market-data licensing, timestamp quality, anti-bot restrictions, history and reliability.
+- Free source cadence may be insufficient for intraday timeframes; unsupported timeframes must stay disabled.
 - Free database hosting is temporary infrastructure and must not become a product dependency.
 
 ## Next checkpoint
-1. Get Phase 1 domain/provider contract CI green and merge.
-2. Complete provider source matrix and select primary/secondary candidates for each canonical symbol.
-3. Connect Aiven or another no-card PostgreSQL endpoint and execute migrations/invariants.
-4. Configure Cloudflare Hyperdrive only after a real PostgreSQL endpoint exists.
-5. Start chart application shell after Data Proof gates are satisfied.
+Finish all non-external Phase 1 gates, then execute live PostgreSQL and provider Data Proof immediately when runtime credentials/endpoints are available.
