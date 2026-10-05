@@ -43,7 +43,8 @@ export function evaluateObservationQuality({
     }
     finiteNonNegative(maxMovePct, 'maxMovePct');
     movePct = Math.abs(price / previousPrice - 1) * 100;
-    if (movePct > maxMovePct) flags.push('PRICE_SPIKE');
+    const epsilon = Math.max(1e-12, Math.abs(maxMovePct) * Number.EPSILON * 8);
+    if (movePct - maxMovePct > epsilon) flags.push('PRICE_SPIKE');
   }
 
   if (flags.includes('STALE_SOURCE')) return { state: 'STALE', flags, divergencePct, movePct };
