@@ -10,6 +10,8 @@ export function evaluateObservationQuality({
   maxAgeMs,
   referencePrice = null,
   maxDivergencePct = null,
+  previousPrice = null,
+  maxMovePct = null,
 }) {
   finiteNonNegative(ageMs, 'ageMs');
   finiteNonNegative(maxAgeMs, 'maxAgeMs');
@@ -17,7 +19,7 @@ export function evaluateObservationQuality({
   const flags = [];
 
   if (!Number.isFinite(price) || price <= 0) {
-    return { state: 'INVALID', flags: ['NON_POSITIVE_PRICE'], divergencePct: null };
+    return { state: 'INVALID', flags: ['NON_POSITIVE_PRICE'], divergencePct: null, movePct: null };
   }
 
   if (ageMs > maxAgeMs) {
@@ -34,7 +36,18 @@ export function evaluateObservationQuality({
     if (divergencePct > maxDivergencePct) flags.push('PROVIDER_DIVERGENCE');
   }
 
-  if (flags.includes('STALE_SOURCE')) return { state: 'STALE', flags, divergencePct };
-  if (flags.length > 0) return { state: 'DEGRADED', flags, divergencePct };
-  return { state: 'GOOD', flags, divergencePct };
+  let movePct = null;
+  if (previousPrice !== null) {
+    if (!Number.isFinite(previousPrice) || previousPrice <= 0) {
+      throw new RangeError('previousPrice must be positive and finite when provided');
+    }
+    finiteNonNegative(maxMovePct, 'maxMovePct');
+    movePct = Math.abs(price / previousPrice - 1) * 100;
+    const epsilon = Math.max(1e-12, Math.abs(maxMovePct) * Number.EPSILON * 8);
+    if (movePct - maxMovePct > epsilon) flags.push('PRICE_SPIKE');
+  }
+
+  if (flags.includes('STALE_SOURCE')) return { state: 'STALE', flags, divergencePct, movePct };
+  if (flags.length > 0) return { state: 'DEGRADED', flags, divergencePct, movePct };
+  return { state: 'GOOD', flags, divergencePct, movePct };
 }
