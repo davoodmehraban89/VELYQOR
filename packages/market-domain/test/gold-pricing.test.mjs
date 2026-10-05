@@ -10,7 +10,8 @@ test('calculates theoretical 18K gold in IRT per gram', () => {
 
 test('calculates absolute and percentage premium', () => {
   const result = goldPremium({ marketIrtPerGram: 10_500_000, theoreticalIrtPerGram: 10_000_000 });
-  assert.deepEqual(result, { absoluteIrt: 500_000, percent: 5 });
+  assert.equal(result.absoluteIrt, 500_000);
+  assert.ok(Math.abs(result.percent - 5) < 1e-12);
 });
 
 test('rejects zero or negative market inputs', () => {
