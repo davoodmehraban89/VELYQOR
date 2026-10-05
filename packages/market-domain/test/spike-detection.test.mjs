@@ -26,7 +26,7 @@ test('does not flag a move at the configured boundary', () => {
   });
 
   assert.equal(result.state, 'GOOD');
-  assert.equal(result.movePct, 5);
+  assert.ok(Math.abs(result.movePct - 5) < 1e-9);
 });
 
 test('staleness remains the dominant state when a stale observation also spikes', () => {
