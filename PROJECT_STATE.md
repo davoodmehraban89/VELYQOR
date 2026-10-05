@@ -34,12 +34,18 @@ Phase 1 — Market Domain & Data Proof started. Phase 0 PostgreSQL foundation is
 - Database invariant test exists for canonical instruments and invalid OHLC rejection.
 - Cloudflare account connection verified.
 - Render Free PostgreSQL was tested and rejected for the current zero-cost constraint because provisioning required payment credentials.
+- Deterministic theoretical 18K gold and premium calculations implemented.
+- Source timestamp alignment and staleness semantics implemented.
+- Provider normalization contract implemented, including IRR-to-IRT conversion and refusal to guess unsupported units.
+- Provider health contract implemented.
+- Deterministic market-data quality classification implemented for GOOD / DEGRADED / STALE / INVALID.
+- CI floating-point assertion defect was identified from workflow logs and corrected with tolerance-based numeric assertions.
 
 ## In progress
-- Phase 1 market-domain implementation independent of a live hosting provider.
+- Phase 1 provider research/data proof for USD/IRT, GOLD18/IRT and XAU/USD.
 - Managed PostgreSQL provisioning on a no-card free provider.
-- Provider research/data proof for USD/IRT, GOLD18/IRT and XAU/USD.
-- Data quality, source alignment, theoretical-gold and premium engines.
+- Provider-specific adapters only after legal/technical source suitability is documented.
+- Integration of quality state with ingestion/candle pipeline.
 
 ## External blocker
 A live VELYQOR PostgreSQL endpoint is not yet connected. This blocks executing migrations against production-like infrastructure, but it does not block domain implementation, deterministic tests, provider research, or application scaffolding.
@@ -51,8 +57,8 @@ A live VELYQOR PostgreSQL endpoint is not yet connected. This blocks executing m
 - Free database hosting is temporary infrastructure and must not become a product dependency.
 
 ## Next checkpoint
-1. Implement deterministic market-domain calculations and tests.
-2. Complete provider research and source contracts.
+1. Get Phase 1 domain/provider contract CI green and merge.
+2. Complete provider source matrix and select primary/secondary candidates for each canonical symbol.
 3. Connect Aiven or another no-card PostgreSQL endpoint and execute migrations/invariants.
 4. Configure Cloudflare Hyperdrive only after a real PostgreSQL endpoint exists.
 5. Start chart application shell after Data Proof gates are satisfied.
