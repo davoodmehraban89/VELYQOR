@@ -1,6 +1,7 @@
 import { canonicalObservation } from './provider-contract.mjs';
 import { evaluateObservationQuality } from './data-quality.mjs';
 import { alignSources, theoreticalGold18Irt, goldPremium } from './gold-pricing.mjs';
+import { qualityScore } from './quality-score.mjs';
 
 function validDate(value, name) {
   if (!(value instanceof Date) || Number.isNaN(value.valueOf())) {
@@ -12,6 +13,20 @@ function positiveFinite(value, name) {
   if (!Number.isFinite(value) || value <= 0) {
     throw new RangeError(`${name} must be positive and finite`);
   }
+}
+
+function sourceQuality(source, fallbackState) {
+  const state = source?.quality?.state ?? fallbackState;
+  const score = source?.quality?.score;
+  return {
+    state,
+    score: Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : qualityScore({ state }),
+  };
+}
+
+function weakestQuality(qualities) {
+  const order = { GOOD: 0, DEGRADED: 1, STALE: 2, INVALID: 3 };
+  return qualities.reduce((weakest, item) => order[item.state] > order[weakest.state] ? item : weakest);
 }
 
 export function normalizeProviderObservation({
@@ -45,6 +60,11 @@ export function normalizeProviderObservation({
     maxAgeMs,
     referencePrice,
     maxDivergencePct,
+  });
+  quality.score = qualityScore({
+    state: quality.state,
+    flags: quality.flags,
+    ageRatio: maxAgeMs > 0 ? ageMs / maxAgeMs : 0,
   });
 
   return {
@@ -98,7 +118,14 @@ export function deriveGoldMetrics({
     theoreticalIrtPerGram,
   });
 
-  const quality = aligned.quality === 'STALE' || marketAgeMs > maxAgeMs ? 'STALE' : 'GOOD';
+  const xauQuality = sourceQuality(xau, aligned.xauAgeMs > maxAgeMs ? 'STALE' : 'GOOD');
+  const usdQuality = sourceQuality(usdIrt, aligned.usdIrtAgeMs > maxAgeMs ? 'STALE' : 'GOOD');
+  const marketQuality = sourceQuality(marketGold, marketAgeMs > maxAgeMs ? 'STALE' : 'GOOD');
+  const weakest = weakestQuality([xauQuality, usdQuality, marketQuality]);
+  const ageStale = aligned.quality === 'STALE' || marketAgeMs > maxAgeMs;
+  const quality = ageStale ? 'STALE' : weakest.state;
+  const propagatedScore = Math.min(xauQuality.score, usdQuality.score, marketQuality.score);
+  const derivedScore = ageStale ? Math.min(30, propagatedScore) : propagatedScore;
 
   return {
     targetTimestamp: target.toISOString(),
@@ -106,13 +133,15 @@ export function deriveGoldMetrics({
     theoreticalIrtPerGram,
     premium,
     quality,
+    qualityScore: derivedScore,
     sourceSnapshot: {
       targetTimestamp: target.toISOString(),
-      xau: aligned.xau,
-      usdIrt: aligned.usdIrt,
+      xau: { ...aligned.xau, quality: xauQuality },
+      usdIrt: { ...aligned.usdIrt, quality: usdQuality },
       marketGold: {
         value: marketGold.value,
         timestamp: marketGold.timestamp.toISOString(),
+        quality: marketQuality,
       },
       agesMs: {
         xau: aligned.xauAgeMs,
