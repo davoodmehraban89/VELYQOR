@@ -3,7 +3,7 @@
 Last updated: 2026-10-05
 
 ## Current phase
-Phase 0 — Foundation & Governance; PostgreSQL core implementation in progress.
+Phase 1 — Market Domain & Data Proof started. Phase 0 PostgreSQL foundation is merged.
 
 ## Product scope locked for MVP
 - Iran free-market USD/IRT
@@ -14,41 +14,45 @@ Phase 0 — Foundation & Governance; PostgreSQL core implementation in progress.
 - Professional charting, drawing tools, technical indicators, overlays, and persistent user workspaces
 
 ## Architecture baseline
-- Modular monolith for the MVP.
+- Modular monolith for MVP, with independently schedulable ingestion workers.
 - TypeScript/React/Next.js web application.
-- PostgreSQL is the canonical datastore; hosting is provider-portable through `DATABASE_URL`.
-- Neon is the preferred initial managed PostgreSQL provider, but is not a domain dependency.
-- Cloudflare is edge/runtime/cache/protection; Hyperdrive may front PostgreSQL after credentials exist.
+- PostgreSQL is the only canonical database contract. Hosting provider is replaceable through `DATABASE_URL`.
+- Initial hosting target is Aiven Free PostgreSQL if it can be provisioned without payment credentials; Aiven is infrastructure only, never a domain dependency.
+- Supabase, Neon, Render and Railway are not architectural dependencies. They remain replaceable hosting alternatives.
+- Cloudflare is edge/runtime/cache/protection. Hyperdrive can front any compatible reachable PostgreSQL once credentials exist.
 - Provider adapters feed immutable raw observations, normalization, quality gates, candle construction, and derived-series calculation.
 - UTC canonical storage; Asia/Tehran presentation.
+- No UI timeframe may imply precision not supported by source data.
 
 ## Completed
 - Independent private GitHub repository established.
-- Phase 0 foundation PR passed CI and was merged to `main`.
+- Phase 0 foundation merged to `main` with green CI.
+- Provider-neutral PostgreSQL market core merged to `main` with green CI.
 - Engineering rules, Definition of Done, architecture baseline and canonical market contracts established.
-- PostgreSQL portability decision recorded in ADR-0002.
-- Initial PostgreSQL migrations created for instruments, providers, raw observations, normalized ticks, candles, derived values, data-quality events, users, workspaces and drawings.
+- PostgreSQL migrations exist for instruments, providers, raw observations, normalized ticks, candles, derived values, data-quality events, users, workspaces and drawings.
 - Six canonical MVP instruments are seeded.
-- Database invariant test added for canonical instruments and invalid OHLC rejection.
-- Cloudflare account connection verified; Hyperdrive API is available and currently has no configurations.
-- Neon plugin is installed in the ChatGPT environment, but its operational actions are not exposed in this conversation yet.
+- Database invariant test exists for canonical instruments and invalid OHLC rejection.
+- Cloudflare account connection verified.
+- Render Free PostgreSQL was tested and rejected for the current zero-cost constraint because provisioning required payment credentials.
 
 ## In progress
-- Provisioning a managed PostgreSQL database for VELYQOR.
-- Applying and executing database migrations/invariant tests against a real PostgreSQL instance.
-- Cloudflare Hyperdrive configuration after PostgreSQL credentials exist.
-- Phase 1 provider research/data proof.
+- Phase 1 market-domain implementation independent of a live hosting provider.
+- Managed PostgreSQL provisioning on a no-card free provider.
+- Provider research/data proof for USD/IRT, GOLD18/IRT and XAU/USD.
+- Data quality, source alignment, theoretical-gold and premium engines.
 
 ## External blocker
-A live PostgreSQL instance has not yet been provisioned/connected in this conversation. Until a database connection is available, migrations cannot truthfully be reported as executed. Neon is the selected initial provider; the schema itself remains portable PostgreSQL.
+A live VELYQOR PostgreSQL endpoint is not yet connected. This blocks executing migrations against production-like infrastructure, but it does not block domain implementation, deterministic tests, provider research, or application scaffolding.
 
 ## Risks
 - Iranian market-data provider licensing, timestamp quality, anti-bot restrictions, history and reliability.
 - UI timeframes must reflect actual observation frequency; synthetic precision is prohibited.
 - XAU/USD and USD/IRT source timestamps require explicit alignment/staleness thresholds.
+- Free database hosting is temporary infrastructure and must not become a product dependency.
 
 ## Next checkpoint
-1. Provision/connect VELYQOR PostgreSQL.
-2. Execute migrations and invariant tests.
-3. Create Cloudflare Hyperdrive against the database.
-4. Start Phase 1 provider adapters and data-quality proof.
+1. Implement deterministic market-domain calculations and tests.
+2. Complete provider research and source contracts.
+3. Connect Aiven or another no-card PostgreSQL endpoint and execute migrations/invariants.
+4. Configure Cloudflare Hyperdrive only after a real PostgreSQL endpoint exists.
+5. Start chart application shell after Data Proof gates are satisfied.
