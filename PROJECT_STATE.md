@@ -51,6 +51,7 @@ Phase 1 — Market Data Integrity & Data Proof.
 ## External blockers
 1. `NAVASAN_API_KEY` is not connected to the runtime, so live USD_IRT_FREE and GOLD18_IRT cadence/quota/freshness proof cannot yet execute.
 2. `ALPHAVANTAGE_API_KEY` is not connected to the runtime, so live XAU_USD proof cannot yet execute.
+3. Cloudflare Hyperdrive is not configured yet. The Cloudflare account currently has zero Hyperdrive configs, and creating one requires the live database credential to be entered through a secure channel without exposing it in repository history or chat.
 
 ## Phase 1 exit gates
 1. PostgreSQL migrations and invariants execute successfully against a live reachable PostgreSQL instance. **PASS**
@@ -61,6 +62,7 @@ Phase 1 — Market Data Integrity & Data Proof.
 6. At least one secondary legally usable reference is identified for Iranian market cross-check, or the lack of one is explicitly accepted as a launch risk. **PASS as documented unresolved launch risk**
 7. Secrets are runtime-only and absent from the repository. **PASS**
 8. CI is green for all Phase 1 domain behavior. **PASS**
+9. Cloudflare Hyperdrive is configured against the reachable PostgreSQL endpoint. **BLOCKED — secure database credential handoff**
 
 ## Risks
 - Iranian market-data licensing, timestamp quality, anti-bot restrictions, history and reliability.
@@ -69,4 +71,4 @@ Phase 1 — Market Data Integrity & Data Proof.
 - Free database hosting is temporary infrastructure and must not become a product dependency.
 
 ## Next checkpoint
-Connect the Navasan and Alpha Vantage runtime credentials without committing them, execute continuous live Data Proof for all three required instruments, record provider evidence, then close Phase 1 only if the live gates pass.
+Securely connect the Navasan and Alpha Vantage runtime credentials and the Neon database credential to Cloudflare Hyperdrive without committing or exposing secrets; execute continuous live Data Proof for all three required instruments; record provider and Hyperdrive evidence; then close Phase 1 only if all external gates pass.
