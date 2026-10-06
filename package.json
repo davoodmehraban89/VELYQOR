@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "node --test packages/market-domain/test/*.test.mjs",
-    "verify": "pnpm --if-present lint && pnpm --if-present typecheck && pnpm --if-present test && pnpm --if-present build"
+    "verify": "pnpm --if-present lint && pnpm --if-present typecheck && pnpm --if-present test && pnpm --if-present build",
+    "phase1:live-proof": "node scripts/phase1-live-data-proof.mjs"
   }
 }
