@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {spawnSync} from 'node:child_process';
+test('live proof runner fails closed when provider credentials are absent',()=>{const env={...process.env};delete env.NAVASAN_API_KEY;delete env.ALPHAVANTAGE_API_KEY;const run=spawnSync(process.execPath,['scripts/phase1-live-data-proof.mjs'],{cwd:process.cwd(),env,encoding:'utf8'});assert.notEqual(run.status,0);assert.match(run.stderr+run.stdout,/NAVASAN_API_KEY is required/)});
