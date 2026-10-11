@@ -20,7 +20,7 @@ export function parseCoinGeckoMarketChart(payload,{symbol,unit,receivedAt,rights
   const when=positiveDate(p[0],"CoinGecko point");
   if(seen.has(when))throw Error("Duplicate CoinGecko timestamp");
   seen.add(when);
-  return canonicalReferencePoint({...base,dataKind:DATA_KIND.REFERENCE,price:p[1],sourceTimestamp:when,
+  return canonicalReferencePoint({...base,dataKind:DATA_KIND.REFERENCE,price:p[1],quality:"DEGRADED",sourceTimestamp:when,
      venue:"coingecko_aggregated",quoteSide:"indicative"});
  }).sort((a,b)=>a.sourceTimestamp.localeCompare(b.sourceTimestamp));
 }
