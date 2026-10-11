@@ -74,12 +74,12 @@ export function preflightOhlcHistory({
     const open=decimal(row.open,"open",factor),high=decimal(row.high,"high",factor),
           low=decimal(row.low,"low",factor),close=decimal(row.close,"close",factor);
     if(low.value>open.value||low.value>close.value||high.value<open.value||high.value<close.value)throw Error("Invalid OHLC ordering "+index);
-    const volume=row.volume===undefined||row.volume===null?null:decimal(row.volume,"volume",1).canonical;
+    const volume=row.volume===undefined||row.volume===null?null:/^0+(?:\.0+)?$/.test(String(row.volume))?"0":decimal(row.volume,"volume",1).canonical;
     const key=symbol+"|"+timeframe+"|"+row.sessionDate;
     const entry={symbol,providerCode,timeframe:"1d",sessionDate:row.sessionDate,
       openTime:new Date(openMs).toISOString(),closeTime:new Date(closeMs).toISOString(),
       open:open.canonical,high:high.canonical,low:low.canonical,close:close.canonical,
-      volume,unit:canonicalUnit,sourceUnit:rawUnit,quality:"GOOD",
+      volume,unit:canonicalUnit,sourceUnit:rawUnit,quality:"DEGRADED",qualityReason:"source_ohlc_not_cross_verified",
       provenance:{providerCode,licenseEvidenceRef:license.evidenceRef,sourceRecordId:row.sourceRecordId??null,ingestedAt:new Date(ingestedAt).toISOString(),timeZone}};
     if(index>0&&row.sessionDate<rows[index-1].sessionDate)outOfOrder++;
     if(unique.has(key)){
@@ -102,13 +102,30 @@ export function preflightOhlcHistory({
   }
   const coverageDays=candles.length?1+(Date.parse(candles.at(-1).sessionDate+"T00:00:00Z")-Date.parse(candles[0].sessionDate+"T00:00:00Z"))/DAY:0;
   const annualCoverageMet=coverageDays>=365;
+  // Compare requested window against an independently configured exchange calendar.
+  // Never assume every calendar day (or every weekday) is an open market session.
+  let expectedWindowSessions=null,missingWindowSessions=null,unexpectedClosedSessions=null;
+  if(isSessionDay){
+    expectedWindowSessions=0;missingWindowSessions=0;unexpectedClosedSessions=0;
+    const known=new Set(candles.map(x=>x.sessionDate));
+    for(let at=Date.parse(from+"T00:00:00Z");at<=Date.parse(to+"T00:00:00Z");at+=DAY){
+      const day=new Date(at).toISOString().slice(0,10);
+      const expected=isSessionDay(day);
+      if(typeof expected!=="boolean")throw Error("Session calendar returned non-boolean");
+      if(expected){expectedWindowSessions++;if(!known.has(day))missingWindowSessions++}
+      else if(known.has(day))unexpectedClosedSessions++;
+    }
+  }
   return {
     symbol,providerCode,timeframe,unit:canonicalUnit,dataKind:"source_ohlc",
     licenseEvidenceRef:license.evidenceRef,intendedUse,candles,
     audit:{receivedCount:rows.length,uniqueCount:candles.length,duplicates,outOfOrder,
       firstSession:candles[0]?.sessionDate??null,lastSession:candles.at(-1)?.sessionDate??null,
-      coverageDays,annualCoverageMet,maxCalendarGapDays,missingExpectedSessions,
+      coverageDays,annualCoverageMet,maxCalendarGapDays,missingExpectedSessions,expectedWindowSessions,missingWindowSessions,unexpectedClosedSessions,
       calendarVerified:Boolean(isSessionDay),gapsFilled:0,
-      readyForAnnualPublication:annualCoverageMet&&Boolean(isSessionDay)&&missingExpectedSessions===0}
+      // Authorization metadata alone is not legal proof: human licensing approval is required.
+      readyForAnnualPublication:intendedUse==="public_api"&&annualCoverageMet&&Boolean(isSessionDay)&&
+        expectedWindowSessions>0&&missingWindowSessions===0&&unexpectedClosedSessions===0&&
+        missingExpectedSessions===0&&duplicates===0&&outOfOrder===0}
   };
 }
