@@ -6,8 +6,8 @@ import {
 } from "lightweight-charts";
 
 type Quality="GOOD"|"DEGRADED"|"STALE"|"INVALID";
-type Point={date:string;close:number;quality:Quality};
-type Candle={openTime:string;sessionDate?:string;open:string|number;high:string|number;low:string|number;close:string|number;quality:Quality};
+type Point={date?:string;time?:string;close?:number;price?:number;quality:Quality};
+type Candle={openTime?:string;time?:string;sessionDate?:string;open:string|number;high:string|number;low:string|number;close:string|number;volume?:number|null;quality:Quality};
 type History={
   ok:boolean;symbol:string;source:string;storage:string;
   dataKind:"source_ohlc"|"daily_reference_point_not_ohlc"|"reference_point";
@@ -33,8 +33,9 @@ function safeTime(t:string,day:boolean):Time{
   return Math.floor(value/1000) as UTCTimestamp;
 }
 function pointValue(p:Point):number{
-  if(!Number.isFinite(p.close)||p.close<=0)throw Error("Invalid reference rate");
-  return p.close;
+  const value=Number(p.price??p.close);
+  if(!Number.isFinite(value)||value<=0)throw Error("Invalid reference rate");
+  return value;
 }
 function candleValue(c:Candle){
   const [open,high,low,close]=[c.open,c.high,c.low,c.close].map(Number);
@@ -83,11 +84,11 @@ export function LightweightMarketChart({symbol,from,to,timeframe,historyEndpoint
         const isCandle=data.dataKind==="source_ohlc";
         if(isCandle&&data.timeframe&&data.timeframe!==timeframe)throw Error("بازه زمانی کندل ناسازگار است");
         const mapped=isCandle?data.series.map(p=>{
-          if(!("openTime" in p))throw Error("Missing source candle");
-          return {time:safeTime(timeframe==="1d"?(p.sessionDate??p.openTime):p.openTime,timeframe==="1d"),...candleValue(p)};
+          if(!("open" in p))throw Error("Missing source candle");
+          return {time:safeTime(timeframe==="1d"?(p.sessionDate??p.openTime??p.time??""):(p.openTime??p.time??""),timeframe==="1d"),...candleValue(p)};
         }):data.series.map(p=>{
-          if(!("date" in p))throw Error("Missing point timestamp");
-          return {time:safeTime(p.date,true),value:pointValue(p)};
+          if(!("date" in p)&&!("time" in p))throw Error("Missing point timestamp");
+          return {time:safeTime(p.date??p.time??"",timeframe==="1d"),value:pointValue(p)};
         });
         for(let i=1;i<mapped.length;i++){
           // Data must already be sorted and deduplicated by the provider adapter.
