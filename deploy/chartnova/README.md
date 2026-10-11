@@ -46,3 +46,21 @@ node --test deploy/chartnova/widget-config.test.mjs
 node --test deploy/chartnova/market-terminal.test.mjs
 node --check deploy/chartnova/worker.mjs
 ```
+
+## One-year historical reference rates (2026-10-11)
+
+The historical storage pipeline is now seeded with **762 real ECB daily foreign-exchange reference observations** on the existing Neon PostgreSQL production branch:
+
+- `EUR_USD_ECB`: 254 valid business-day observations (2025-10-13—2026-10-09).
+- `EUR_GBP_ECB`: 254 observations.
+- `EUR_CHF_ECB`: 254 observations.
+
+Stored in `market_ticks` with provenance flags `daily_reference_point_not_ohlc`; new provider/instrument mappings plus unique source/time index and a restricted **public SELECT-only view** `chartnova_history_public`. The `candles` table remains empty; one point per day **cannot** be passed off as open/high/low/close. The official ECB data permits reuse with attribution.
+
+A verified snapshot from the Neon public view has been **mirrored into Cloudflare KV** under keys `history:ecb:<SYMBOL>:1y`, then served by the new restricted `GET /api/history?symbol=EUR_USD_ECB` endpoint. Only the 3 allowlisted symbols are supported. The new historical page draws an actual daily line series and computes SMA/RSI/MACD over observations, labeled as derived from **reference rates, not traded candles**. It does not claim price forecasts.
+
+**Operational limitation:** This is a verified one-time Neon-to-KV data sync, **not yet an automatic continuous DB synchronization pipeline**. A live PostgreSQL credential was intentionally **not** exposed to Cloudflare; the worker serves a validated public history cache. Run `node scripts/import-ecb-reference-history.mjs --commit` with local `DATABASE_URL` to import updated ECB data (idempotent). Updating the KV mirror requires a controlled export/sync; a scheduled cross-provider sync has not been configured.
+
+**Local and live checks:** `node --test deploy/chartnova/history-endpoints.test.mjs`, `node --test deploy/chartnova/market-terminal.test.mjs deploy/chartnova/widget-config.test.mjs`, `npm test`. Confirm real API content and browser UI after Cloudflare deployment. The existing Scriptable V3/V4 file download routes have been preserved in `worker.mjs`.
+
+Domestic free-market USD, 18K gold, and gold coin **do not yet have licensed one-year OHLC history**. TGJU public site has useful OHLC history but its terms restrict reuse without a written license. Those symbols must not be seeded from unlicensed or fabricated candlesticks. Cryptocurrency OHLC feeds also require reachable, licensed providers; initial Binance and Kraken probes failed on this network.
