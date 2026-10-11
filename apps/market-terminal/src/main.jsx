@@ -25,7 +25,7 @@ function ChartPane({model,lastTick,chartRef}){
    layout:{background:{type:"solid",color:"#101c2d"},textColor:"#c8d5eb",fontFamily:"Vazirmatn, Tahoma, sans-serif"},
    grid:{vertLines:{color:"#1f3146"},horzLines:{color:"#1f3146"}},
    crosshair:{mode:CrosshairMode.Normal},
-   rightPriceScale:{borderColor:"#37506b"},timeScale:{borderColor:"#37506b",timeVisible:model.kind==="candle",secondsVisible:false},
+   rightPriceScale:{borderColor:"#37506b"},timeScale:{borderColor:"#37506b",timeVisible:model.timeframe==="1h",secondsVisible:false},
   });
   series.current=model.kind==="candle"?
    chart.addSeries(CandlestickSeries,{upColor:"#1cbba3",downColor:"#ef6d78",borderVisible:false,wickUpColor:"#1cbba3",wickDownColor:"#ef6d78"}):
@@ -52,7 +52,7 @@ function App(){
  const [wsStatus,setWsStatus]=useState("غیرفعال: درگاه استریم هنوز منتشر نشده");
  const [lastTick,setLastTick]=useState(null);
  const chartRef=useRef(null);
- const reloadToken=useRef(0);
+ const [reloadVersion,setReloadVersion]=useState(0);
  useEffect(()=>{
   if(!allowedSymbol(symbol))return;
   const controller=new AbortController();
@@ -70,24 +70,26 @@ function App(){
    }
   })();
   return ()=>controller.abort();
- },[symbol]);
+ },[symbol,reloadVersion]);
  useEffect(()=>{
   if(!model||!WS_BASE){setWsStatus("غیرفعال: درگاه WebSocket هنوز پیکربندی نشده");return}
   if(!/^wss:\/\//.test(WS_BASE)){setWsStatus("آدرس WebSocket باید امن (wss) باشد");return}
-  let socket,closed=false,reconnectTimer=null,attempt=0,sequence=0;
+  let socket,closed=false,reconnectTimer=null,attempt=0,sequence=0,everConnected=false;
   const connect=()=>{
    if(closed)return;
    const streamUrl=new URL(WS_BASE);streamUrl.searchParams.set("symbol",symbol);
    try{socket=new WebSocket(streamUrl)}catch{setWsStatus("اتصال WebSocket پیکربندی نادرست دارد");return}
    setWsStatus("در حال اتصال WebSocket...");
    socket.onopen=()=>{
-    attempt=0;sequence=0;setWsStatus("متصل؛ در انتظار رویداد واقعی");
+    if(everConnected)setReloadVersion(x=>x+1);
+    everConnected=true;attempt=0;sequence=0;setWsStatus("متصل؛ در انتظار رویداد واقعی");
     socket.send(JSON.stringify({type:"stream.subscribe",version:1,symbols:[symbol]}));
    };
    socket.onmessage=(event)=>{
     let msg;try{msg=JSON.parse(event.data)}catch{return}
     if(msg.type!=="market.update"||!Number.isSafeInteger(msg.sequence)||msg.sequence<=sequence)return;
-    const update=normalizeStreamUpdate(msg,symbol,model.kind);
+    if(sequence!==0&&msg.sequence!==sequence+1){setWsStatus("گپ استریم شناسایی شد؛ تاریخچه مجدداً دریافت می‌شود");setReloadVersion(x=>x+1);return}
+    const update=normalizeStreamUpdate(msg,symbol,model.kind,model.timeframe);
     if(!update)return;
     sequence=msg.sequence;setLastTick(update);
    };
