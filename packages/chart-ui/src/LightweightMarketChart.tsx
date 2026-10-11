@@ -88,7 +88,8 @@ export function LightweightMarketChart({symbol,from,to,timeframe,historyEndpoint
           return {time:safeTime(timeframe==="1d"?(p.sessionDate??p.openTime??p.time??""):(p.openTime??p.time??""),timeframe==="1d"),...candleValue(p)};
         }):data.series.map(p=>{
           if(!("date" in p)&&!("time" in p))throw Error("Missing point timestamp");
-          return {time:safeTime(p.date??p.time??"",timeframe==="1d"),value:pointValue(p)};
+          const point=p as Point;
+          return {time:safeTime(point.date??point.time??"",timeframe==="1d"),value:pointValue(point)};
         });
         for(let i=1;i<mapped.length;i++){
           // Data must already be sorted and deduplicated by the provider adapter.
