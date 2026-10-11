@@ -39,3 +39,6 @@ The new validator is not wired into live ingestion. Revert its commits / omit th
 ## Sources for humans to verify license scope
 - Navasan official webservice guide: https://www.navasan.tech/webserviceguide/
 - ECB public EXR methodology: https://www.ecb.europa.eu/stats/exchange_rates/html/index.en.html
+
+## Independent audit finding — local, uncommitted migration
+A read-only inspection of the user's existing **untracked** `db/migrations/0005_navasan_private_daily_ohlc.sql` found its provider mapping sets `raw_unit` to `IRT`, whereas the committed Navasan adapter `packages/market-domain/src/adapters/navasan.mjs` declares `IRR_PER_USD` / `IRR_PER_GRAM` and divides input prices by ten. Those assumptions must be reconciled against a provider-supplied unit contract and actual response before any DB migration/import. Do **not** infer from a price's magnitude whether it is IRR or IRT. The untracked migration was **not modified or executed**; there is no new public Navasan view.
