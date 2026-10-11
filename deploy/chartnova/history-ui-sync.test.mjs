@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 const worker=fs.readFileSync(new URL("./worker.mjs",import.meta.url),"utf8");
-const ui=fs.readFileSync(new URL("./history-ui.js",import.meta.url),"utf8").trimEnd();
+const ui=fs.readFileSync(new URL("./history-ui.js",import.meta.url),"utf8").replace(/\r\n/g,"\n").trimEnd();
 test("historical chart implementation and embedded Worker UI remain in sync",()=>{
  const at=worker.lastIndexOf("return new Response(")+"return new Response(".length;
  assert(at>=20);
