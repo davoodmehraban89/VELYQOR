@@ -92,3 +92,9 @@ With explicit user approval, the unused overprivileged Neon role `chartnova_hist
 - Source guide from Navasan documents `ohlcSearch` but not definitive commercial redistribution terms. No Navasan/TGJU/OHLC records were written to Neon. `candles` remains 0 and licensed ECB remains 762 reference points.
 - `chartnova_history_ro` remains a database NOLOGIN role; Worker has no direct Neon secret binding. Manual secure activation and live integration tests are required; only the existing KV-based reference chart is live.
 - Evidence and remaining gates: `docs/data/ohlc-licensing-and-ingestion-gate.md`, `docs/data/neon-history-direct-handoff-2026-10-11.md`.
+
+## 2026-10-11 — CI gate remains RED (independent verification)
+- GitHub Actions run `38172295674` on PR #23 / head `7d0912e1e7777cea882ddc70e49d2f6d3932dc9f` was reported **completed / failure** in both jobs: `verify` and `postgres-invariants`. The workflow-job log downloads returned GitHub 404 `BlobNotFound` and step summaries were empty; the precise failure cause could not be verified.
+- Local isolated-worktree results remain **85/85 domain** and **14/14 Worker/history** PASS, with Worker syntax PASS. These results **do not replace a green remote CI**.
+- The connected Windows device has Corepack-managed `pnpm 10.17.1` but no standalone `pnpm` on PATH, so `corepack pnpm verify` stopped when its nested `pnpm` command was unavailable. The device has no available `psql` or `docker` CLI for locally reproducing the PostgreSQL CI job. Do not treat this as a proven application defect or green full verify.
+- **Release gate:** keep PR #23 draft and do not merge/deploy on the strength of local tests; recover CI logs or reproducible runner diagnostics and resolve both jobs first. GitHub run: https://github.com/davoodmehraban89/VELYQOR/actions/runs/38172295674
