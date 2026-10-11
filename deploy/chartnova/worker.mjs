@@ -1,15 +1,64 @@
+// History is always an ECB daily reference observation, never a candle.
+// The optional database binding contains a read-only PostgreSQL role and stays server-side.
+const ECB_SYMBOLS=Object.freeze({EUR_USD_ECB:"USD",EUR_GBP_ECB:"GBP",EUR_CHF_ECB:"CHF"});
+const ECB_KIND="daily_reference_point_not_ohlc";
+function validHistoryDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+"T00:00:00Z"))&&new Date(s+"T00:00:00Z").toISOString().slice(0,10)===s}
+function historyError(error,status=400){return Response.json({ok:false,error},{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}})}
+function sanitizeHistoryData(snapshot,symbol,from,to,limit,storage){
+ if(!snapshot?.ok||snapshot.symbol!==symbol||snapshot.dataKind!==ECB_KIND||!Array.isArray(snapshot.series))return null;
+ const series=snapshot.series.filter(r=>validHistoryDate(r.date)&&r.date>=from&&r.date<=to&&Number.isFinite(r.close)&&r.close>0&&["GOOD","DEGRADED"].includes(r.quality)).slice(-limit);
+ if(series.some((r,i)=>i>0&&r.date<=series[i-1].date))return null;
+ return {...snapshot,series,count:series.length,range:{from,to},storage};
+}
+async function neonHistoryQuery(env,symbol,from,to,limit){
+ const secret=env.CHARTNOVA_HISTORY_DATABASE_URL;
+ if(typeof secret!=="string"||!secret)return null;
+ const uri=new URL(secret);
+ if(!["postgres:","postgresql:"].includes(uri.protocol)||!uri.hostname.endsWith(".neon.tech"))throw Error("Invalid database endpoint");
+ const end=new Date(Date.parse(to+"T00:00:00Z")+86400000).toISOString();
+ const sql="SELECT symbol,quote_asset,source,observation_at,price,quality,flags FROM public.chartnova_history_public WHERE symbol=$1 AND observation_at >= $2::timestamptz AND observation_at < $3::timestamptz ORDER BY observation_at DESC LIMIT $4::integer";
+ const reply=await fetch("https://"+uri.hostname+"/sql",{method:"POST",headers:{"content-type":"application/json","Neon-Connection-String":secret,"Neon-Raw-Text-Output":"true","Neon-Array-Mode":"false"},body:JSON.stringify({query:sql,params:[symbol,from+"T00:00:00Z",end,limit]}),signal:AbortSignal.timeout(10000)});
+ if(!reply.ok)throw Error("Database unavailable");
+ const payload=await reply.json();
+ if(!Array.isArray(payload.rows))throw Error("Database response invalid");
+ const series=payload.rows.map(r=>{
+   const date=new Date(r.observation_at).toISOString().slice(0,10),close=Number(r.price);
+   if(r.symbol!==symbol||r.source!=="ecb_exr"||r.quote_asset!==ECB_SYMBOLS[symbol]||!validHistoryDate(date)||!Number.isFinite(close)||close<=0||!["GOOD","DEGRADED"].includes(r.quality)||r.flags?.data_kind!==ECB_KIND||r.flags?.observation_date!==date)throw Error("Database row failed validation");
+   return {date,close,quality:r.quality};
+ }).reverse();
+ if(series.some((r,i)=>i>0&&r.date<=series[i-1].date))throw Error("Database chronology invalid");
+ return {ok:true,symbol,source:"ECB",sourceUrl:"https://data-api.ecb.europa.eu/service/data/EXR/",storage:"Neon PostgreSQL (read-only)",dataKind:ECB_KIND,timeframe:"1D",quoteCurrency:ECB_SYMBOLS[symbol],attribution:"Source: European Central Bank (ECB), EXR daily euro foreign exchange reference rates",usageNotice:"Reference rates for information only; not traded OHLC or Iranian free-market prices.",fetchedAt:new Date().toISOString(),count:series.length,range:{from,to},series};
+}
 export default {async fetch(request,env){const url=new URL(request.url);const downloadable = {"/downloads/ChartNova-Large.js":"downloads:chartnova-widget-large-js:v1","/downloads/ChartNova-Large.txt":"downloads:chartnova-widget-large-js:v1","/downloads/ChartNova-3-Prices-V4.js":"downloads:chartnova-widget-3-v4","/downloads/ChartNova-3-Prices-V4.txt":"downloads:chartnova-widget-3-v4"};
 if(Object.hasOwn(downloadable,url.pathname)&&(request.method==="GET"||request.method==="HEAD")){
 const source=await env.MARKET_CACHE.get(downloadable[url.pathname]);if(!source)return new Response("File not found",{status:404});
 const filename=url.pathname.split("/").at(-1),txt=filename.endsWith(".txt");
 return new Response(request.method==="HEAD"?null:source,{headers:{"content-type":txt?"text/plain; charset=utf-8":"application/javascript; charset=utf-8","content-disposition":"attachment; filename="+filename,"cache-control":"no-cache","x-content-type-options":"nosniff"}})
 }
-if(url.pathname==="/api/history"&&request.method==="GET"){
-  const symbol=url.searchParams.get("symbol")||"EUR_USD_ECB";
-  if(!["EUR_USD_ECB","EUR_GBP_ECB","EUR_CHF_ECB"].includes(symbol))return Response.json({ok:false,error:"unsupported_history_symbol"},{status:400,headers:{"cache-control":"no-store"}});
-  const data=await stored(env,"history:ecb:"+symbol+":1y");
-  if(!data?.ok||data.symbol!==symbol||data.dataKind!=="daily_reference_point_not_ohlc"||!Array.isArray(data.series)||data.series.length<35)return Response.json({ok:false,error:"history_not_available",source:"ECB"},{status:503,headers:{"cache-control":"no-store"}});
-  return Response.json(data,{headers:{"cache-control":"public, max-age=300","x-content-type-options":"nosniff"}})
+if(url.pathname==="/api/history"){
+ if(request.method!=="GET")return historyError("method_not_allowed",405);
+ const allowed=new Set(["symbol","from","to","limit"]);
+ if([...url.searchParams.keys()].some(k=>!allowed.has(k)))return historyError("unsupported_parameter");
+ const symbol=url.searchParams.get("symbol")||"EUR_USD_ECB";
+ if(!Object.hasOwn(ECB_SYMBOLS,symbol))return historyError("unsupported_history_symbol");
+ const today=new Date().toISOString().slice(0,10);
+ const defaultFrom=new Date(Date.parse(today+"T00:00:00Z")-366*86400000).toISOString().slice(0,10);
+ const from=url.searchParams.get("from")||defaultFrom,to=url.searchParams.get("to")||today;
+ const n=url.searchParams.get("limit"),limit=n===null?400:Number(n);
+ if(!validHistoryDate(from)||!validHistoryDate(to)||from>to||Date.parse(to+"T00:00:00Z")-Date.parse(from+"T00:00:00Z")>400*86400000||to>today||n!==null&&!/^[1-9][0-9]{0,2}$/.test(n)||!Number.isInteger(limit)||limit<1||limit>500)return historyError("invalid_history_range_or_limit");
+ const cacheKey="history:v2:"+symbol+":"+from+":"+to+":"+limit;
+ let data=null;
+ if(env.CHARTNOVA_HISTORY_DATABASE_URL){
+   try{data=await stored(env,cacheKey);if(!data?.ok||data.symbol!==symbol||data.dataKind!==ECB_KIND||!Array.isArray(data.series))data=null;
+     if(!data){data=await neonHistoryQuery(env,symbol,from,to,limit);if(data){try{await env.MARKET_CACHE.put(cacheKey,JSON.stringify(data),{expirationTtl:300})}catch{}}}
+   }catch{data=null}
+ }
+ if(!data){
+   const snapshot=await stored(env,"history:ecb:"+symbol+":1y");
+   data=sanitizeHistoryData(snapshot,symbol,from,to,limit,"Neon verified snapshot via Cloudflare KV (fallback)");
+ }
+ if(!data)return historyError("history_not_available",503);
+ return Response.json(data,{headers:{"cache-control":"public, max-age=60","x-content-type-options":"nosniff"}});
 }
 if(url.pathname==="/manifest.webmanifest")return new Response("{\"id\":\"/\",\"name\":\"ChartNova | چارت‌نوا\",\"short_name\":\"ChartNova\",\"lang\":\"fa\",\"dir\":\"rtl\",\"start_url\":\"/\",\"scope\":\"/\",\"display\":\"standalone\",\"background_color\":\"#e7f4f5\",\"theme_color\":\"#009da9\",\"icons\":[{\"src\":\"/icon.svg\",\"sizes\":\"any\",\"type\":\"image/svg+xml\",\"purpose\":\"any maskable\"}]}",{headers:{"content-type":"application/manifest+json; charset=utf-8"}});if(url.pathname==="/icon.svg")return new Response("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"512\" height=\"512\" viewBox=\"0 0 512 512\"><rect width=\"512\" height=\"512\" rx=\"110\" fill=\"#e5f5f6\"/><g transform=\"translate(56 56) scale(4)\"><defs><linearGradient id=\"cnGlass\" x1=\"0\" x2=\"1\" y1=\"0\" y2=\"1\"><stop stop-color=\"#9ff8f0\"/><stop offset=\".55\" stop-color=\"#16b7c4\"/><stop offset=\"1\" stop-color=\"#116a91\"/></linearGradient></defs><path d=\"M75 18 A37 37 0 1 0 80 72\" fill=\"none\" stroke=\"url(#cnGlass)\" stroke-width=\"13\" stroke-linecap=\"round\"/><ellipse cx=\"49\" cy=\"55\" rx=\"42\" ry=\"15\" transform=\"rotate(-16 49 55)\" fill=\"none\" stroke=\"#c5dcb8\" stroke-width=\"4\" opacity=\".8\"/><g fill=\"url(#cnGlass)\"><rect x=\"31\" y=\"49\" width=\"11\" height=\"26\" rx=\"3\"/><rect x=\"48\" y=\"36\" width=\"11\" height=\"34\" rx=\"3\"/><rect x=\"65\" y=\"27\" width=\"11\" height=\"33\" rx=\"3\"/></g><path d=\"M34 42v39M53 28v48M70 18v48\" stroke=\"#0c797e\" stroke-width=\"2\"/><path d=\"M77 17l14 -4 -3 15z\" fill=\"#16a99d\"/></g></svg>",{headers:{"content-type":"image/svg+xml; charset=utf-8"}});if(url.pathname==="/sw.js")return new Response("const CACHE='chartnova-v1';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/icon.svg','/manifest.webmanifest'])));self.skipWaiting()});self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==self.location.origin||u.pathname.startsWith('/api/'))return;if(e.request.mode==='navigate')e.respondWith(fetch(e.request).catch(()=>caches.match('/')))});",{headers:{"content-type":"application/javascript; charset=utf-8","service-worker-allowed":"/"}});if(url.pathname==="/api/widget"&&request.method==="GET"){
  const raw=url.searchParams.get("symbols");
