@@ -29,8 +29,8 @@ test("read-only repository port returns descending page in ascending presentatio
  assert.equal(r.status,200);
  const json=await r.json();
  assert.equal(json.series.length,2);assert.equal(json.page.hasMore,true);
- assert.equal(json.page.nextCursor,dates[1]);
- assert.equal(json.series[0].time,dates[1]);assert.equal(json.series[1].time,dates[0]);
+ assert.equal(json.page.nextCursor,new Date(dates[1]).toISOString());
+ assert.equal(json.series[0].time,new Date(dates[1]).toISOString());assert.equal(json.series[1].time,new Date(dates[0]).toISOString());
  assert.equal(json.series[0].volume,0);
  assert(!JSON.stringify(json).includes("NOT_FOR_PUBLIC"));
  assert.equal(called.symbol,"BTC_USD");assert.equal(called.limit,2);
