@@ -17,7 +17,7 @@ User React frontend (client only)
  │    ├── source_ohlc → CandlestickSeries
  │    └── daily_reference_point_not_ohlc / reference_point → LineSeries
  ├── HTTPS GET /api/v2/history?... → server REST contract / license gate
- └── WSS /ws/market → Cloudflare Worker gateway → Durable Object (hibernation)
+ └── WSS /stream?symbol=... → Cloudflare Worker gateway → per-symbol Durable Object (hibernation)
                                    ↑ privately authenticated publisher
 Source adapters / ingestion scheduler
  ├── CoinGecko market_chart (price points, not OHLC)
@@ -38,7 +38,7 @@ Source adapters / ingestion scheduler
 
 **WebSocket** is for low-latency incremental licensed events, not historical backfill. Proposed Cloudflare Durable Objects Hibernation gateway supports subscription validation, per-channel monotonic sequence, reconnection and gap detection. History replay on reconnect comes from REST. Publisher is authenticated by a private 32+ character token and rejected if rights are not `approved_public`. No provider publishers are active yet.
 
-**Canvas**: `packages/chart-ui/src/LightweightMarketChart.tsx` runs client-side only with Lightweight Charts version 5, which supports `chart.addSeries(CandlestickSeries|LineSeries)`. It does not turn ECB, CoinGecko, or other sampled points into fake OHLC. All public pages must include TradingView NOTICE and link.
+**Canvas**: `apps/market-terminal/src/main.jsx` is the runnable standalone React/Vite client using Lightweight Charts version 5 with `chart.addSeries(CandlestickSeries|LineSeries)`; `packages/chart-ui/src/LightweightMarketChart.tsx` remains a reusable component prototype. It does not turn ECB, CoinGecko, or other sampled points into fake OHLC. All public pages must include TradingView NOTICE and link.
 
 ## 3. Canonical API design
 
@@ -70,9 +70,16 @@ packages/market-feed/test/*.test.mjs
 packages/chart-ui/package.json
 packages/chart-ui/tsconfig.json
 packages/chart-ui/src/LightweightMarketChart.tsx
-deploy/chartnova/realtime-gateway.mjs
+deploy/chartnova/market-stream-worker.mjs
 docs/architecture/ADR-0004-multimarket-rest-ws-charts.md
 docs/data/multimarket-provider-matrix.md
 ```
 
-**Important:** `packages/chart-ui` is a new isolated component package. The current repository does not yet contain a complete React/Next.js app integrating it. Existing production chart remains unchanged. No Durable Object was created, no live WebSocket opened and no backfill of unlicensed data was executed.
+**Important:** a standalone Vite/React app exists at `apps/market-terminal` and has passed a local production build, but it has **not** been mounted into or deployed over the existing production ChartNova app. No Durable Object was created, no live WebSocket opened and no backfill of unlicensed data was executed.
+
+## 6. Resolution of competing scaffolds (implementation detail)
+Two isolated WebSocket gateway sketches were prototyped while the architecture was being developed. To avoid sending a browser a protocol that its gateway cannot understand, **only** `deploy/chartnova/market-stream-worker.mjs` with `deploy/chartnova/wrangler.realtime.example.toml` is the selected deployment candidate. It uses `/stream?symbol=<CANONICAL_SYMBOL>`, per-symbol `SymbolStreamRoom`, server-side `STREAM_INGEST_TOKEN`, `STREAM_SYMBOL_ALLOWLIST`, and version-1 client `stream.subscribe` messages.
+
+`deploy/chartnova/realtime-gateway.mjs` and `packages/market-feed/src/realtime-protocol.mjs` remain non-deployed alternative prototypes; do not point the React frontend at the `/ws/market` interface without deliberately migrating and re-testing the protocol. Neither approach has an active provider publisher or a live production route.
+
+For historical data, the current standalone chart loads the **existing** ECB-only `/api/history` REST endpoint and renders those points as a line. `serveHistoryV2` is a provider-neutral and unmounted port for future licensed OHLC. It returns 503 without a configured repository; real candle display remains disabled until a licensed and independently validated data source, persistence and production REST integration exist.
