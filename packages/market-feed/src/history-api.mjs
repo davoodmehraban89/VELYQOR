@@ -37,17 +37,24 @@ export async function serveHistoryV2(request,{lookup}={}){
     if(!data||data.rights!=="approved_public"||data.dataKind!==query.dataKind||
       typeof data.unit!=="string"||!data.source||!data.attribution||!Array.isArray(data.rows))return respond({ok:false,error:"licensed_history_unavailable"},503);
     if(data.rows.length>query.limit+1)return respond({ok:false,error:"source_page_too_large"},502);
+    if(data.rows.length===0)return respond({ok:false,error:"history_not_found"},404);
     const rows=data.rows.slice(0,query.limit);
     if(rows.some(r=>!["GOOD","DEGRADED","STALE"].includes(r?.quality)))throw Error("invalid provider quality");
     const output=rows.map(r=>{
+      if(r.symbol!==query.symbol||r.unit!==data.unit)throw Error("repository symbol/unit mismatch");
+      if(query.dataKind==="source_ohlc"&&r.timeframe!==query.timeframe)throw Error("repository timeframe mismatch");
       if(query.dataKind==="reference_point"){
         if(r.open!==undefined||r.high!==undefined||r.low!==undefined||r.close!==undefined)throw Error("point disguised as OHLC");
         const ts=Date.parse(r.sourceTimestamp);
         if(!Number.isFinite(ts))throw Error("invalid timestamp");
+        const d=new Date(ts).toISOString().slice(0,10);
+        if(d<query.from||d>query.to||(query.cursor&&ts>=Date.parse(query.cursor)))throw Error("out-of-window reference");
         return {time:new Date(ts).toISOString(),price:safeNumber(r.price),quality:r.quality};
       }
       const a=Date.parse(r.openTime),b=Date.parse(r.closeTime);
       if(!Number.isFinite(a)||!Number.isFinite(b)||a>=b)throw Error("invalid candle interval");
+      const d=new Date(a).toISOString().slice(0,10);
+      if(d<query.from||d>query.to||(query.cursor&&a>=Date.parse(query.cursor)))throw Error("out-of-window candle");
       const open=safeNumber(r.open),high=safeNumber(r.high),low=safeNumber(r.low),close=safeNumber(r.close);
       if(low>open||low>close||high<open||high<close)throw Error("invalid OHLC");
       return {time:new Date(a).toISOString(),sessionDate:typeof r.sessionDate==="string"&&date(r.sessionDate)?r.sessionDate:undefined,open,high,low,close,volume:r.volume===undefined||r.volume===null?null:Number(r.volume),quality:r.quality};
