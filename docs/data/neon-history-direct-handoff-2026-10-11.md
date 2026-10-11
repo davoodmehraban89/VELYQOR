@@ -15,7 +15,7 @@
 
 ## Security handoff
 - A least-privilege PostgreSQL role `chartnova_history_ro` was created by SQL with `NOLOGIN`, `NOINHERIT`, `NOCREATEDB`, and `NOCREATEROLE`. Permission checks prove it can SELECT only `public.chartnova_history_public`, not `market_ticks`, `candles`, or `instruments`, and cannot INSERT into `market_ticks`.
-- The Neon role-creation API also created `chartnova_history_reader`, but unexpectedly granted membership in `neon_superuser` and role/database creation privileges. Attempts to harden it using the project-owner connection were denied. **Never bind this role to Cloudflare; it needs authorized administrative deletion/revocation.**
+- The Neon role-creation API also created `chartnova_history_reader`, but unexpectedly granted membership in `neon_superuser` and role/database creation privileges. Attempts to harden it using the project-owner connection were denied. **This role was subsequently deleted after explicit user approval, verified absent from pg_roles; see docs/security/neon-history-reader-predelete-2026-10-11.md.**
 - Secret transfer to Cloudflare was blocked by the execution environment's safety controls. The least-privilege role remains `NOLOGIN`, and `CHARTNOVA_HISTORY_DATABASE_URL` is **not configured**. Do not imply a deployed Neon direct connection.
 - **Manual secure activation later:** use the Neon Console / SQL editor under an administrator authorized to manage the role: set a strong private password and LOGIN on `chartnova_history_ro`; set a Cloudflare Worker secret named `CHARTNOVA_HISTORY_DATABASE_URL` to a PostgreSQL URL for that role using Cloudflare's secure secret manager, not source code, chat, or ordinary worker variables. Then deploy the reviewed Worker branch and run real HTTP tests, including revoking SELECT to demonstrate fail-closed behavior.
 - No licensed one-year OHLC feed for domestic free-market USD, Iranian 18K gold or coins has been connected. Never fill `candles` from ECB reference points, point-in-time KV snapshots, or unlicensed TGJU archives.
@@ -29,3 +29,6 @@
 ## Rollback
 - Keep existing KV keys `history:ecb:<SYMBOL>:1y`; removing the optional database secret forces KV-only reads.
 - Preserve existing published Cloudflare Worker version and version ID for rollback. Do not delete the existing KV namespace or provider secrets.
+
+### Security cleanup completed
+After explicit approval, the overprivileged `chartnova_history_reader` was deleted. A separate PostgreSQL verification returned zero matching role records, retained `chartnova_history_ro` with restricted permissions, and retained all 762 ECB observations. Safe secret handoff and live Neon-backed Worker deployment remain pending.
