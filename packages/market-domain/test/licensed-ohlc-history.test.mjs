@@ -44,7 +44,7 @@ test("cannot relabel daily reference observation as a traded candle",()=>{
 });
 test("OHLC ordering, time zone, future intervals and naive times are rejected",()=>{
  assert.throws(()=>run([sample("2025-10-13",{low:"1260000"})]),/OHLC ordering/);
- assert.throws(()=>run([sample("2025-10-13",{openTime:"2025-10-13T00:00:00Z"})]),/Timezone\/session mismatch/);
+ assert.throws(()=>run([sample("2025-10-13",{openTime:"2025-10-12T19:00:00Z"})]),/Timezone\/session mismatch/);
  assert.throws(()=>run([sample("2025-10-13",{openTime:"2025-10-13T00:00:00"})]),/timezone offset/);
  assert.throws(()=>run([sample("2025-10-13",{closeTime:"2027-10-13T23:00:00+03:30"})]),/future bar/);
 });
