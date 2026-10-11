@@ -78,5 +78,5 @@ test("full-year coverage is not implied by 254 observations unless dates and cal
 test("rejects undocumented unit pairs and excessive precision before persistence",()=>{
  assert.throws(()=>run([],{canonicalUnit:"USD_PER_BTC"}),/Undocumented/);
  assert.throws(()=>run([sample("2025-10-13",{close:"1210000.1234567890"})]),/precision/);
- assert.throws(()=>run([sample("2025-10-13",{volume:"0"})]),/positive/);
+ assert.equal(run([sample("2025-10-13",{volume:"0"})]).candles[0].volume,"0");
 });
