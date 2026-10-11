@@ -1,4 +1,4 @@
-// Historical-data panel: one-year ECB daily reference observations from Neon->KV.
+// Historical-data panel: one-year ECB daily reference observations from Neon or its verified KV fallback.
 // IMPORTANT: this series is NOT OHLC, not intraday market-executable prices.
 const ecbHistoryState={symbol:"EUR_USD_ECB",cache:new Map(),busy:false,error:null};
 const ecbHistoryNames={EUR_USD_ECB:"یورو / دلار آمریکا",EUR_GBP_ECB:"یورو / پوند بریتانیا",EUR_CHF_ECB:"یورو / فرانک سوئیس"};
@@ -14,7 +14,7 @@ async function loadEcbHistory(force=false){
    const data=await response.json();
    if(data.ok!==true||data.symbol!==symbol||data.dataKind!=="daily_reference_point_not_ohlc"||!Array.isArray(data.series)||data.series.length<35)throw Error("داده معتبر دریافت نشد.");
    const entries=data.series;
-   if(entries.some((r,i)=>!/^(2025|2026)-\d\d-\d\d$/.test(r.date)||!Number.isFinite(r.close)||r.close<=0||(i>0&&r.date<=entries[i-1].date)))throw Error("سری زمانی نامعتبر است.");
+   if(entries.some((r,i)=>!/^\d{4}-\d\d-\d\d$/.test(r.date)||!Number.isFinite(r.close)||r.close<=0||(i>0&&r.date<=entries[i-1].date)))throw Error("سری زمانی نامعتبر است.");
    ecbHistoryState.cache.set(symbol,data);
  }catch(err){ecbHistoryState.error="دریافت تاریخچه ممکن نشد؛ "+(err?.message||"خطای شبکه")}
  finally{ecbHistoryState.busy=false;renderEcbHistory()}
@@ -56,7 +56,7 @@ function renderEcbHistory(){
  metrics.append(metric("RSI ۱۴",a?a.rsi.toFixed(2):"—","براساس نرخ‌های مرجع روزانه"));
  metrics.append(metric("MACD ۱۲/۲۶",a?a.macd.toFixed(4):"—","براساس نرخ‌های مرجع روزانه"));
  const provenance=el("historyProvenance");
- if(provenance)provenance.textContent="مبدأ: ECB EXR (نرخ مرجع روزانه) · نگهداری: PostgreSQL در Neon · نسخه خوانش: Cloudflare KV · آخرین انتشار کش: "+(data.fetchedAt?new Date(data.fetchedAt).toLocaleString("fa-IR"):"نامشخص");
+ if(provenance)provenance.textContent="مبدأ: ECB EXR (نرخ مرجع روزانه) · مسیر دریافت: "+(data.storage||"نسخه تاریخی کش‌شده")+" · زمان دریافت این نسخه: "+(data.fetchedAt?new Date(data.fetchedAt).toLocaleString("fa-IR"):"نامشخص");
 }
 function initializeEcbHistory(){
  const select=el("historySymbol");if(!select)return;
