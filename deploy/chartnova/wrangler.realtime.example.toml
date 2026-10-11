@@ -1,0 +1,18 @@
+# Architecture example only. NEVER deploy without explicit approval and security review.
+name = "chartnova-realtime-gateway"
+main = "realtime-gateway.mjs"
+compatibility_date = "2026-10-12"
+workers_dev = false
+
+[[durable_objects.bindings]]
+name = "CHARTNOVA_REALTIME_HUB"
+class_name = "ChartNovaRealtimeHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChartNovaRealtimeHub"]
+
+# Set CHARTNOVA_REALTIME_PUBLISH_TOKEN only with:
+#   wrangler secret put CHARTNOVA_REALTIME_PUBLISH_TOKEN --config deploy/chartnova/wrangler.realtime.example.toml
+# This does not create data licenses, market providers or a live stream.
+# Add explicit custom route, staging domain, quota limits and monitoring before deploy.
