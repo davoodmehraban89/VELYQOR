@@ -38,6 +38,7 @@ export async function serveHistoryV2(request,{lookup}={}){
       typeof data.unit!=="string"||!data.source||!data.attribution||!Array.isArray(data.rows))return respond({ok:false,error:"licensed_history_unavailable"},503);
     if(data.rows.length>query.limit+1)return respond({ok:false,error:"source_page_too_large"},502);
     const rows=data.rows.slice(0,query.limit);
+    if(rows.some(r=>!["GOOD","DEGRADED","STALE"].includes(r?.quality)))throw Error("invalid provider quality");
     const output=rows.map(r=>{
       if(query.dataKind==="reference_point"){
         if(r.open!==undefined||r.high!==undefined||r.low!==undefined||r.close!==undefined)throw Error("point disguised as OHLC");
@@ -49,9 +50,10 @@ export async function serveHistoryV2(request,{lookup}={}){
       if(!Number.isFinite(a)||!Number.isFinite(b)||a>=b)throw Error("invalid candle interval");
       const open=safeNumber(r.open),high=safeNumber(r.high),low=safeNumber(r.low),close=safeNumber(r.close);
       if(low>open||low>close||high<open||high<close)throw Error("invalid OHLC");
-      return {time:new Date(a).toISOString(),open,high,low,close,quality:r.quality};
+      return {time:new Date(a).toISOString(),sessionDate:typeof r.sessionDate==="string"&&date(r.sessionDate)?r.sessionDate:undefined,open,high,low,close,volume:r.volume===undefined||r.volume===null?null:Number(r.volume),quality:r.quality};
     });
     if(output.some((row,i)=>i&&row.time>=output[i-1].time))throw Error("repository rows must be strictly descending");
+    if(output.some(row=>"volume" in row&&row.volume!==null&&(!Number.isFinite(row.volume)||row.volume<0)))throw Error("invalid source volume");
     const hasMore=data.rows.length>query.limit;
     const nextCursor=hasMore?output.at(-1)?.time:null;
     output.reverse();
