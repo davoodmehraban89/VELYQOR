@@ -64,7 +64,7 @@ export async function serveHistoryV2(request,{lookup}={}){
     const hasMore=data.rows.length>query.limit;
     const nextCursor=hasMore?output.at(-1)?.time:null;
     output.reverse();
-    return respond({ok:true,symbol:query.symbol,timeframe:query.timeframe,dataKind:query.dataKind,
+    return respond({ok:true,symbol:query.symbol,timeframe:query.timeframe,dataKind:query.dataKind,rights:"approved_public",
       source:data.source,attribution:data.attribution,unit:data.unit,
       series:output,count:output.length,page:{hasMore,nextCursor},
       delayed:data.delayed===true,qualityPolicy:"source_quality_preserved"});
