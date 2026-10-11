@@ -29,3 +29,20 @@ npm test
 The hosted Worker is updated via Cloudflare API, preserving existing KV namespace and secret bindings. The Worker contains embedded HTML/JS; `market-ui.js` is the corresponding readable UI implementation, and edits must be mirrored in the Worker before redeployment.
 
 Independent headless Edge UI tests used actual cached-provider fixtures locally; neither fabricated prices nor browser fixtures were deployed.
+
+## Multi-asset Home Screen Widget preparation (October 2026)
+
+The browser interface now has a **ویجت گوشی** screen and a watchlist favorites toggle. Users can select up to 6 actual market instruments, reorder or remove them, and choose dark, light or Nova Glass appearance. Preview sizes show 2 / 4 / 6 rows. Each card shows the correct quote unit and source freshness, not a fabricated real-time price.
+
+Favorites and widget preferences are stored in **browser localStorage** under `chartnova-widget-prefs-v1`. No user account, cross-device synchronization, or native widget installation is implemented at this stage.
+
+`GET /api/widget?symbols=USD-IRT,GOLD18-IRT,BTC-USD` returns a small, read-only selection of cached symbols, keeping order. It includes prices, quote currencies, provider timestamps, percentage changes, `stale`, `missingSymbols` and `refreshAfterSeconds: 900`. Inputs are limited to 6 valid ticker IDs. This endpoint reads KV only and **does not consume upstream API quota**. It is suitable as a future native widget feed.
+
+**Installability limitation:** A PWA home-screen shortcut is not equivalent to a native iOS WidgetKit or Android App Widget. Until native code is built, signed and installed for the selected platform, ChartNova will not appear under the system's Add Widget picker. Do not claim otherwise. Android/iOS background refresh scheduling is managed by the OS, not guaranteed to run every 15 minutes.
+
+Tests:
+```sh
+node --test deploy/chartnova/widget-config.test.mjs
+node --test deploy/chartnova/market-terminal.test.mjs
+node --check deploy/chartnova/worker.mjs
+```
