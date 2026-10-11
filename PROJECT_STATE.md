@@ -72,3 +72,10 @@ Phase 1 — Market Data Integrity & Data Proof.
 
 ## Next checkpoint
 Securely connect the Navasan and Alpha Vantage runtime credentials and the Neon database credential to Cloudflare Hyperdrive without committing or exposing secrets; execute continuous live Data Proof for all three required instruments; record provider and Hyperdrive evidence; then close Phase 1 only if all external gates pass.
+
+## Handoff update — 2026-10-11: ECB history and direct-Neon work
+- **Verified in production Neon:** 762 licensed ECB EXR daily reference observations in `market_ticks`, 254 per EUR_USD_ECB/EUR_GBP_ECB/EUR_CHF_ECB, 2025-10-13 to 2026-10-09; 0 invalid/duplicate checks. The `candles` table remains empty. The 2026-10-11 importer `--commit` reported 0 *new* rows; do not attribute prior inserts to this run.
+- **Verified deployed:** existing `/api/history` retrieves 254-row annual observations through Cloudflare KV and line-chart UI; live smoke also passed domestic, widget, and Scriptable routes. This is not yet a live PostgreSQL read.
+- **Implemented in isolated GitHub branch, not deployed:** bounded/parameterized Neon-first API with KV fallback, 9 passing Worker history unit tests and syntax check.
+- **Security blocker:** SQL-created `chartnova_history_ro` has read access exclusively to the ECB history view but is NOLOGIN awaiting secure credential activation. An API-created `chartnova_history_reader` unexpectedly inherited privileged `neon_superuser` membership and **must not be used**; administrative removal/revocation is pending. Safe Cloudflare secret handoff was blocked, and `CHARTNOVA_HISTORY_DATABASE_URL` is absent.
+- **Next checkpoint:** secure least-privilege role credential through approved dashboard, complete API+UI integration and live test on a reviewed Worker deployment, then continue seeking explicitly licensed OHLC sources. Details and rollback are in `docs/data/neon-history-direct-handoff-2026-10-11.md`.
