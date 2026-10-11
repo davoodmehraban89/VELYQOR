@@ -7,8 +7,14 @@ function historyError(error,status=400){return Response.json({ok:false,error},{s
 function sanitizeHistoryData(snapshot,symbol,from,to,limit,storage){
  if(!snapshot?.ok||snapshot.symbol!==symbol||snapshot.dataKind!==ECB_KIND||!Array.isArray(snapshot.series))return null;
  const series=snapshot.series.filter(r=>validHistoryDate(r.date)&&r.date>=from&&r.date<=to&&Number.isFinite(r.close)&&r.close>0&&["GOOD","DEGRADED"].includes(r.quality)).slice(-limit);
- if(series.some((r,i)=>i>0&&r.date<=series[i-1].date))return null;
- return {...snapshot,series,count:series.length,range:{from,to},storage};
+ if(!series.length||series.some((r,i)=>i>0&&r.date<=series[i-1].date))return null;
+ // Never spread untrusted KV content into a public API response: allowlisted fields only.
+ return {ok:true,symbol,source:"ECB",sourceUrl:"https://data-api.ecb.europa.eu/service/data/EXR/",
+  storage,dataKind:ECB_KIND,timeframe:"1D",quoteCurrency:ECB_SYMBOLS[symbol],
+  attribution:"Source: European Central Bank (ECB), EXR daily euro foreign exchange reference rates",
+  usageNotice:"Reference rates for information only; not traded OHLC or Iranian free-market prices.",
+  fetchedAt:typeof snapshot.fetchedAt==="string"&&Number.isFinite(Date.parse(snapshot.fetchedAt))?snapshot.fetchedAt:null,
+  series:series.map(r=>({date:r.date,close:r.close,quality:r.quality})),count:series.length,range:{from,to}};
 }
 async function neonHistoryQuery(env,symbol,from,to,limit){
  const secret=env.CHARTNOVA_HISTORY_DATABASE_URL;
@@ -27,6 +33,7 @@ async function neonHistoryQuery(env,symbol,from,to,limit){
    return {date,close,quality:r.quality};
  }).reverse();
  if(series.some((r,i)=>i>0&&r.date<=series[i-1].date))throw Error("Database chronology invalid");
+ if(!series.length)return null;
  return {ok:true,symbol,source:"ECB",sourceUrl:"https://data-api.ecb.europa.eu/service/data/EXR/",storage:"Neon PostgreSQL (read-only)",dataKind:ECB_KIND,timeframe:"1D",quoteCurrency:ECB_SYMBOLS[symbol],attribution:"Source: European Central Bank (ECB), EXR daily euro foreign exchange reference rates",usageNotice:"Reference rates for information only; not traded OHLC or Iranian free-market prices.",fetchedAt:new Date().toISOString(),count:series.length,range:{from,to},series};
 }
 export default {async fetch(request,env){const url=new URL(request.url);const downloadable = {"/downloads/ChartNova-Large.js":"downloads:chartnova-widget-large-js:v1","/downloads/ChartNova-Large.txt":"downloads:chartnova-widget-large-js:v1","/downloads/ChartNova-3-Prices-V4.js":"downloads:chartnova-widget-3-v4","/downloads/ChartNova-3-Prices-V4.txt":"downloads:chartnova-widget-3-v4"};
@@ -38,18 +45,18 @@ return new Response(request.method==="HEAD"?null:source,{headers:{"content-type"
 if(url.pathname==="/api/history"){
  if(request.method!=="GET")return historyError("method_not_allowed",405);
  const allowed=new Set(["symbol","from","to","limit"]);
- if([...url.searchParams.keys()].some(k=>!allowed.has(k)))return historyError("unsupported_parameter");
- const symbol=url.searchParams.get("symbol")||"EUR_USD_ECB";
+ if([...url.searchParams.keys()].some(k=>!allowed.has(k)||url.searchParams.getAll(k).length!==1))return historyError("unsupported_parameter");
+ const symbol=url.searchParams.get("symbol")??"EUR_USD_ECB";
  if(!Object.hasOwn(ECB_SYMBOLS,symbol))return historyError("unsupported_history_symbol");
  const today=new Date().toISOString().slice(0,10);
  const defaultFrom=new Date(Date.parse(today+"T00:00:00Z")-366*86400000).toISOString().slice(0,10);
- const from=url.searchParams.get("from")||defaultFrom,to=url.searchParams.get("to")||today;
+ const from=url.searchParams.get("from")??defaultFrom,to=url.searchParams.get("to")??today;
  const n=url.searchParams.get("limit"),limit=n===null?400:Number(n);
  if(!validHistoryDate(from)||!validHistoryDate(to)||from>to||Date.parse(to+"T00:00:00Z")-Date.parse(from+"T00:00:00Z")>400*86400000||to>today||n!==null&&!/^[1-9][0-9]{0,2}$/.test(n)||!Number.isInteger(limit)||limit<1||limit>500)return historyError("invalid_history_range_or_limit");
  const cacheKey="history:v2:"+symbol+":"+from+":"+to+":"+limit;
  let data=null;
  if(env.CHARTNOVA_HISTORY_DATABASE_URL){
-   try{data=await stored(env,cacheKey);if(!data?.ok||data.symbol!==symbol||data.dataKind!==ECB_KIND||!Array.isArray(data.series))data=null;
+   try{data=sanitizeHistoryData(await stored(env,cacheKey),symbol,from,to,limit,"Neon PostgreSQL (read-only, cached)");
      if(!data){data=await neonHistoryQuery(env,symbol,from,to,limit);if(data){try{await env.MARKET_CACHE.put(cacheKey,JSON.stringify(data),{expirationTtl:300})}catch{}}}
    }catch{data=null}
  }
