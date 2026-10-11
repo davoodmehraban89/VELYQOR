@@ -15,6 +15,22 @@ function equalSecret(a,b){
   let mismatch=0;for(let i=0;i<a.length;i++)mismatch|=a.charCodeAt(i)^b.charCodeAt(i);
   return mismatch===0;
 }
+function allowedOrigin(env,origin){
+  if(!origin)return true; // non-browser subscribers still require independent edge rate limits
+  const list=typeof env.STREAM_ALLOWED_ORIGINS==="string"?env.STREAM_ALLOWED_ORIGINS.split(",").map(x=>x.trim()):[];
+  return list.includes(origin);
+}
+async function readLimitedJson(request,maxBytes=8192){
+  if(!request.body)return null;
+  const reader=request.body.getReader();let bytes=0;const decoder=new TextDecoder();let data="";
+  try{
+   while(true){const {done,value}=await reader.read();if(done)break;
+    bytes+=value.byteLength;if(bytes>maxBytes)throw Error("payload_too_large");
+    data+=decoder.decode(value,{stream:true});
+   }
+   data+=decoder.decode();return JSON.parse(data);
+  }finally{reader.releaseLock()}
+}
 function allowedSymbol(env,symbol){
   if(!symbolValid(symbol))return false;
   const approved=typeof env.STREAM_SYMBOL_ALLOWLIST==="string"?env.STREAM_SYMBOL_ALLOWLIST.split(",").map(x=>x.trim()):[];
@@ -35,6 +51,7 @@ export async function routeStreamRequest(request,env){
   if(url.pathname==="/stream"){
     if(request.method!=="GET")return respond({ok:false,error:"method_not_allowed"},405);
     if((request.headers.get("Upgrade")||"").toLowerCase()!=="websocket")return respond({ok:false,error:"websocket_upgrade_required"},426);
+    if(!allowedOrigin(env,request.headers.get("Origin")))return respond({ok:false,error:"origin_not_allowed"},403);
     if([...url.searchParams.keys()].some(k=>k!=="symbol"||url.searchParams.getAll(k).length!==1))return respond({ok:false,error:"invalid_query"},400);
     const symbol=url.searchParams.get("symbol");
     if(!allowedSymbol(env,symbol))return respond({ok:false,error:"symbol_unavailable"},404);
@@ -48,7 +65,7 @@ export async function routeStreamRequest(request,env){
     if(!equalSecret(bearer.startsWith("Bearer ")?bearer.slice(7):"",env.STREAM_INGEST_TOKEN))return respond({ok:false,error:"unauthorized"},401);
     const size=Number(request.headers.get("content-length")||0);
     if(size>8192)return respond({ok:false,error:"payload_too_large"},413);
-    let item;try{item=await request.json()}catch{return respond({ok:false,error:"invalid_json"},400)}
+    let item;try{item=await readLimitedJson(request)}catch{return respond({ok:false,error:"invalid_json_or_oversized"},400)}
     let record;
     try{record=parseMarketRecord(item)}catch{return respond({ok:false,error:"invalid_market_record"},422)}
     if(!allowedSymbol(env,record.symbol))return respond({ok:false,error:"symbol_unavailable"},404);
@@ -72,6 +89,7 @@ export class SymbolStreamRoom {
     if(!symbolValid(symbol))return respond({ok:false,error:"invalid_symbol"},400);
     if(url.pathname==="/connect"){
       if((request.headers.get("Upgrade")||"").toLowerCase()!=="websocket")return respond({ok:false,error:"upgrade_required"},426);
+      if(this.state.getWebSockets(symbol).length>=256)return respond({ok:false,error:"room_connection_limit"},429);
       const pair=new WebSocketPair();
       const [client,server]=Object.values(pair);
       this.state.acceptWebSocket(server,[symbol]);
@@ -81,7 +99,7 @@ export class SymbolStreamRoom {
     if(url.pathname==="/broadcast"&&request.method==="POST"){
       if(!equalSecret(request.headers.get("x-hub-key"),this.env.STREAM_INGEST_TOKEN))return respond({ok:false,error:"unauthorized"},401);
       let record;
-      try{record=parseMarketRecord(await request.json())}catch{return respond({ok:false,error:"invalid_market_record"},422)}
+      try{record=parseMarketRecord(await readLimitedJson(request))}catch{return respond({ok:false,error:"invalid_market_record"},422)}
       if(record.symbol!==symbol||!mayPublish(record))return respond({ok:false,error:"wrong_symbol_or_unlicensed"},403);
       const seq=await this.state.storage.transaction(async tx=>{
         const previous=await tx.get("nextSequence")??0;
