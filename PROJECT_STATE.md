@@ -82,3 +82,13 @@ Securely connect the Navasan and Alpha Vantage runtime credentials and the Neon 
 
 ## 2026-10-11 — Security cleanup verified
 With explicit user approval, the unused overprivileged Neon role `chartnova_history_reader` was deleted. Independent queries confirm 0 remaining matches, `chartnova_history_ro` still present with read access only to the ECB view and `NOLOGIN`, and ECB history remains **762 observations (254 per symbol)**. No deployed Worker secret or application code was changed. Pre-delete role configuration and post-delete evidence: `docs/security/neon-history-reader-predelete-2026-10-11.md`.
+
+## 2026-10-11 — OHLC license gate, secure historical API and chart provenance (isolated branch)
+- Added `packages/market-domain/src/licensed-ohlc-history.mjs`: strict source-OHLC-only staging validation; explicit human-reviewed licensing metadata, commercial-storage/public-redistribution rights, exact base-ten IRR→IRT normalization for declared pairs, UTC offsets + IANA session zone, no invented volume/candles, duplicate and missing-session diagnostics, and strict annual-publication readiness gate. The gate verifies *claims* in a license manifest, not the authenticity of any signed agreement.
+- Added regression tests `licensed-ohlc-history.test.mjs` and `licensed-ohlc-release.test.mjs`. Domain suite **85/85 PASS**.
+- Tightened `GET /api/history` input (duplicates/empty dates), cached public-response allowlist, non-empty series gate. Added `deploy/chartnova/history-security.test.mjs`.
+- Synced `deploy/chartnova/history-ui.js` into embedded Worker UI, removed hard-coded KV provenance, and added `history-ui-sync.test.mjs`. Worker/history **14/14 PASS**, Worker syntax PASS. None of these changes are deployed to Production.
+- Independent read-only audit of user's uncommitted `db/migrations/0005_navasan_private_daily_ohlc.sql` found a **raw currency unit discrepancy**: the proposed SQL claims IRT, whereas committed Navasan adapter interprets IRR and divides by ten. Migration remains unexecuted and user's uncommitted files untouched. Must verify provider units and licensing before any import.
+- Source guide from Navasan documents `ohlcSearch` but not definitive commercial redistribution terms. No Navasan/TGJU/OHLC records were written to Neon. `candles` remains 0 and licensed ECB remains 762 reference points.
+- `chartnova_history_ro` remains a database NOLOGIN role; Worker has no direct Neon secret binding. Manual secure activation and live integration tests are required; only the existing KV-based reference chart is live.
+- Evidence and remaining gates: `docs/data/ohlc-licensing-and-ingestion-gate.md`, `docs/data/neon-history-direct-handoff-2026-10-11.md`.
