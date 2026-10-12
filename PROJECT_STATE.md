@@ -133,3 +133,10 @@ With explicit user approval, the unused overprivileged Neon role `chartnova_hist
 - Real Neon still has **762** ECB reference points, **0** OHLC candles; `chartnova_history_ro` remains NOLOGIN, former privileged reader absent. Cloudflare bindings still only MARKET_CACHE, NAVASAN_API_KEY, OANOR_API_KEY.
 - PR #24 remains draft and GitHub CI **RED**: run **38197941929** (#93) reported both `verify` and `postgres-invariants` failing. The job logs return 404 BlobNotFound, so no root cause is verified. No provider permissions, staging deployment, paid Cloudflare Durable Objects, or production publication approved or attempted.
 - Full handoff: `docs/operations/chartnova-neon-v2-ws-quality-2026-10-12.md`.
+
+## 2026-10-12 — CI pre-run diagnosis and real local WebSocket smoke
+- GitHub Actions run 38198123692 (#95) was inspected via **raw GitHub REST jobs endpoint**, not merely summarized status: both `verify` and `postgres-invariants` had `runner_name=""`, `steps=[]`, and completed in about 3 seconds. Therefore **the tests never started**; do not claim application/SQL failure or CI success. The reason for runner non-allocation remains unknown. See `docs/operations/github-actions-pre-run-failure-2026-10-12.md`.
+- Wrangler 4.149.0 successfully **compiled** the selected DO Worker through `deploy --dry-run`, showing expected DO and environment bindings; no deploy happened.
+- Real **localhost-only** WSS smoke passed: HTTP 101 WebSocket handshake, `stream.subscribe` → `session.ready`, test-only private publisher HTTP 200, `market.update` delivered to 1 client with monotonic `sequence=1`. The event contained fictional TEST-ONLY values, never persisted to Neon or production systems. Local Worker and child `workerd` process were stopped.
+- Repeatable smoke script: `scripts/smoke-local-stream.mjs`. Evidence: `docs/operations/chartnova-ci-local-ws-smoke-2026-10-12.md`.
+- No live provider entitlement, operational secret, production DO, public market data, or code deployment has been enabled. Existing dirty Windows worktree stays untouched. PR #24 remains Draft, blocked on runner allocation, security and data licenses.
