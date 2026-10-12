@@ -112,6 +112,12 @@ export class SymbolStreamRoom {
       let delivered=0;
       for(const socket of this.state.getWebSockets(symbol)){
         if(socket.readyState!==1)continue;
+        // Do not let a slow consumer hold an ever-growing outbound queue.
+        // An affected client must reconnect and reconcile from REST.
+        if(typeof socket.bufferedAmount==="number"&&socket.bufferedAmount>1_048_576){
+          try{socket.close(1013,"slow consumer; REST recovery required")}catch{}
+          continue;
+        }
         try{socket.send(data);delivered++}catch{try{socket.close(1011,"send error")}catch{}}
       }
       return respond({ok:true,symbol,sequence:seq,delivered});
