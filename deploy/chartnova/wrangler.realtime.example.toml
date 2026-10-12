@@ -1,0 +1,25 @@
+# Review template only — deploying a Durable Object may have billing implications.
+# Do not deploy without explicit authorization, secrets, provider rights and network smoke tests.
+name = "chartnova-market-stream"
+main = "market-stream-worker.mjs"
+compatibility_date = "2026-10-12"
+workers_dev = false
+
+[vars]
+# Actual allowed symbols must be reviewed before the streaming service is enabled.
+STREAM_SYMBOL_ALLOWLIST = "EUR_USD_ECB,EUR_GBP_ECB,EUR_CHF_ECB"
+STREAM_ALLOWED_ORIGINS = "https://chartnova.ir,https://app.chartnova.ir"
+
+[[durable_objects.bindings]]
+name = "STREAM_ROOMS"
+class_name = "SymbolStreamRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SymbolStreamRoom"]
+
+# Activate private publisher only by Cloudflare secret manager:
+# wrangler secret put STREAM_INGEST_TOKEN --config deploy/chartnova/wrangler.realtime.example.toml
+# Configure a custom WSS route /stream and private internal publisher route.
+# The /internal/market-update entry must be further restricted by Cloudflare Access/WAF/IP policy.
+# Keep legacy Worker velyqor-preview, KV, and all existing secrets untouched.
