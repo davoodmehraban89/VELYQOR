@@ -1,3 +1,5 @@
+import {serveHistoryV2} from "../../packages/market-feed/src/history-api.mjs";
+import {buildNeonEcbHistoryLookup} from "../../packages/market-feed/src/neon-ecb-history.mjs";
 // History is always an ECB daily reference observation, never a candle.
 // The optional database binding contains a read-only PostgreSQL role and stays server-side.
 const ECB_SYMBOLS=Object.freeze({EUR_USD_ECB:"USD",EUR_GBP_ECB:"GBP",EUR_CHF_ECB:"CHF"});
@@ -41,6 +43,17 @@ if(Object.hasOwn(downloadable,url.pathname)&&(request.method==="GET"||request.me
 const source=await env.MARKET_CACHE.get(downloadable[url.pathname]);if(!source)return new Response("File not found",{status:404});
 const filename=url.pathname.split("/").at(-1),txt=filename.endsWith(".txt");
 return new Response(request.method==="HEAD"?null:source,{headers:{"content-type":txt?"text/plain; charset=utf-8":"application/javascript; charset=utf-8","content-disposition":"attachment; filename="+filename,"cache-control":"no-cache","x-content-type-options":"nosniff"}})
+}
+if(url.pathname==="/api/v2/history"){
+  // This is a secure opt-in read path. Legacy /api/history stays operational
+  // without database credentials and never returns fabricated candles.
+  let lookup;
+  try{
+    lookup=buildNeonEcbHistoryLookup({databaseUrl:env.CHARTNOVA_HISTORY_DATABASE_URL});
+  }catch{
+    return historyError("history_storage_not_configured",503);
+  }
+  return serveHistoryV2(request,{lookup});
 }
 if(url.pathname==="/api/history"){
  if(request.method!=="GET")return historyError("method_not_allowed",405);
