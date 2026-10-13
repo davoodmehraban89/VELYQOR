@@ -1,0 +1,22 @@
+name: P0 safety (review branch)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Test safety guard
+        run: node --test scripts/check-p0-safety.test.mjs
+      - name: Enforce P0 static guard
+        run: node scripts/check-p0-safety.mjs
