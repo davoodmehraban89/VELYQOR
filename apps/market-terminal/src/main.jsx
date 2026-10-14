@@ -15,7 +15,7 @@ const WS_BASE=(import.meta.env.VITE_MARKET_WS_BASE||"").replace(/\/$/,"");
 const allowedSymbol=(symbol)=>SYMBOLS.some(item=>item.value===symbol);
 const number=(value)=>new Intl.NumberFormat("fa-IR",{maximumFractionDigits:6}).format(value);
 
-function ChartPane({model,lastTick,chartRef,paperPosition}){
+function ChartPane({model,lastTick,chartRef,paperPosition,symbol}){
  const host=useRef(null);
  const series=useRef(null);
  const lastTime=useRef(null);
@@ -50,7 +50,7 @@ function ChartPane({model,lastTick,chartRef,paperPosition}){
   if(!active)return;
   for(const line of paperLines.current){try{active.removePriceLine(line)}catch{}}
   paperLines.current=[];
-  if(!paperPosition||paperPosition.symbol!==model?.symbol)return;
+  if(!paperPosition||paperPosition.symbol!==symbol)return;
   const thresholds=[
    {price:paperPosition.entryPrice,title:"ورود فرضی",color:"#dce6f3"},
    {price:paperPosition.stopPrice,title:"حد ضرر آزمایشی",color:"#ff8c88"},
@@ -146,7 +146,7 @@ function App(){
       <div><h2>{SYMBOLS.find(s=>s.value===symbol)?.label}</h2><p>{status}</p></div>
       <div className="last-price">{close===null?"—":number(close)} <small>{model?.unit??""}</small></div>
      </div>
-     {model?<ChartPane model={model} lastTick={lastTick} chartRef={chartRef} paperPosition={paperPosition}/>:<div className="chart-empty">{status}</div>}
+     {model?<ChartPane model={model} lastTick={lastTick} chartRef={chartRef} paperPosition={paperPosition} symbol={symbol}/>:<div className="chart-empty">{status}</div>}
     </div>
     <p className="license">نمودار با <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Lightweight Charts™ توسط TradingView</a> ساخته شده است. این محصول وابسته به TradingView نیست.</p>
    </section>
