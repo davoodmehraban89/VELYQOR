@@ -140,3 +140,30 @@ With explicit user approval, the unused overprivileged Neon role `chartnova_hist
 - Real **localhost-only** WSS smoke passed: HTTP 101 WebSocket handshake, `stream.subscribe` → `session.ready`, test-only private publisher HTTP 200, `market.update` delivered to 1 client with monotonic `sequence=1`. The event contained fictional TEST-ONLY values, never persisted to Neon or production systems. Local Worker and child `workerd` process were stopped.
 - Repeatable smoke script: `scripts/smoke-local-stream.mjs`. Evidence: `docs/operations/chartnova-ci-local-ws-smoke-2026-10-12.md`.
 - No live provider entitlement, operational secret, production DO, public market data, or code deployment has been enabled. Existing dirty Windows worktree stays untouched. PR #24 remains Draft, blocked on runner allocation, security and data licenses.
+
+
+## 2026-10-14 — Paper-only position risk manager (PR #27; isolated feature)
+
+- **User intent:** build professional stop-loss, take-profit, trailing stop, hypothetical P&L and position event tracking in VELYQOR/ChartNova. Explicit user instruction: **no real buying/selling or order submission**.
+- **Source added:** `packages/market-domain/src/paper-position.mjs` — pure deterministic memory-only, manual scenario LONG/SHORT position creation, SL/TP, trailing, net P&L with hypothetical commission/slippage and once-only bracket-style exit; no network, broker, DB or API side effects.
+- **UI added:** `apps/market-terminal/src/PaperTradingPanel.jsx` with form, hypothetical event timeline, manual scenario updates, close/restart and explicit **PAPER ONLY** status. `main.jsx` integrates on the right side; price-line overlays show entry, stop and take-profit on the existing chart. Responsive CSS added.
+- **Independent CI:** `.github/workflows/paper-trading-ci.yml` tests 14 engine scenarios, performs broker/network import check, `npm ci` and builds actual terminal with Vite.
+- **Verified GitHub Actions for commit `9bfe8891ecf204b5e19c5a6aea61affdec21d77c`:** simulation job **SUCCESS** (all four steps), main `verify` **SUCCESS**, `postgres-invariants` **SUCCESS** on 2026-10-14. First run failed due JavaScript negative-zero P&L; logic normalized -0 and rerun passed.
+- **Docs:** `docs/trading/paper-trading-stage1.md`. PR: https://github.com/davoodmehraban89/VELYQOR/pull/27 (Draft). Based on #24, which is based on #23; no merge into main or deployment.
+- **Real trading status: PROHIBITED.** No exchange/broker API, no capital movement, no scheduled execution. ECB history points are not executable quotes and cannot trigger simulated fills. User must manually enter a fictional market price per scenario step.
+- **Remaining:** actual licensed, tradable bid/ask with trusted live quote contract and staleness/sequence filters; server-owned paper portfolio persistence and concurrency-safe audit; reconciliation/reconnection; backtest, risk limits, graph trading UX tests; staged deployment only after explicit approval and stacked PR acceptance.
+- **Separate repository main:** PR #25 (P0 safety) and PR #26 (live-proof test portability) were explicitly authorized and merged 2026-10-14, reaching `main` SHA `0fadaf7dc7df96dbd7aadf0bf9eaf7bbc83ce257` at verification. This stacked PR branch has not been rebased onto that main and must be reconciled before merge.
+- **Local PC:** Desktop Commander was offline at the latest October 14 check. Existing modified and untracked user worktrees untouched.
+
+
+## 2026-10-14 — Stage 2 manual paper portfolio and fail-closed quote boundary (PR #27)
+
+- User requested completion without authorizing real-money buying/selling. Implementation continues only in Draft [PR #27](https://github.com/davoodmehraban89/VELYQOR/pull/27), **stacked onto Draft PR #24**, not `main`, and not deployed.
+- Added `packages/market-domain/src/paper-workspace.mjs`: up to 10 open/50 historical paper-only positions, immutable per-position transitions, per-symbol quote-unit P&L (no mixed-currency sum), CSV audit, deterministic event-replay-based `localStorage` restore that rejects malformed/inconsistent/tampered derived financial fields.
+- Rebuilt `apps/market-terminal/src/PaperTradingPanel.jsx` to display multiple fictional positions, manual price-by-price evaluation, per-position status, local browser restoration, explicit storage-warning/reset and CSV export. Model and price lines are driven only by selected paper position.
+- Added `packages/market-domain/src/paper-quote-guard.mjs` and negative tests: future quote intake refuses old/future/replayed/not-entitled/not-GOOD/closed-market/unapproved/invalid bid-ask data, and uses bid for hypothetical LONG exit vs ask for SHORT. **This module is NOT connected to a live feed, and provided metadata alone is NOT legal authorization.**
+- The browser storage is **local-only** and not account-secure, cross-device, auditable server persistence or a real-money ledger. No actual orders and no automatic paper fills based on ECB reference data.
+- New independent tests `paper-workspace.test.mjs` and `paper-quote-guard.test.mjs`; expanded `paper-trading-ci.yml` to test all `paper-*.test.mjs` suites, verify the pure modules have no brokerage/network imports, and build standalone React/Vite app.
+- Added `paper-trend.mjs` and six unit tests: descriptive 3/5-observation moving averages, five-point momentum, insufficient-data handling and gross initial reward/risk ratio; UI now displays a sparkline of manual scenario prices. **Not a live market signal or forecast.**
+- **Verification status on recording this entry:** prior Stage-1 CI was green; final Stage-2 commit CI must be checked independently before marking implementation accepted.
+- Details, limits and remaining data/provider gates: `docs/trading/paper-trading-stage2.md`. Next verified-feed milestone needs a trusted server-owned quote gateway, signed provider permission/licensing, operational bid/ask updates, idempotent server paper ledger, persistence, quote latency/reconnect monitoring and strict risk controls. NO DEPLOY/NO REAL EXECUTION until separately authorized.

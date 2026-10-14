@@ -1,1 +1,50 @@
 :root{font-family:Tahoma,Arial,sans-serif;color:#e9f0fa;background:#09121f;direction:rtl;font-synthesis:none}*{box-sizing:border-box}body{margin:0}a{color:#67c8ff}button,select{font:inherit}.shell{max-width:1680px;margin:auto;padding:24px}.header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding-bottom:24px}.header h1{margin:3px 0;font-size:26px;color:#f6f9ff}.header h1 span{font-size:14px;font-weight:400;color:#a0b4cf}.eyebrow{color:#56cecb;font-size:11px;letter-spacing:2px;direction:ltr;text-align:right}.status-indicator{padding:8px 14px;border:1px solid #24415a;background:#112437;border-radius:99px;color:#afd8de;font-size:12px}.layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(265px,1fr);gap:20px;align-items:start}.main-column{min-width:0}.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}.toolbar label{font-size:12px;color:#9fb3cc}.toolbar select{min-width:min(300px,100%);background:#14253b;color:#f0f6ff;border:1px solid #2e4b67;border-radius:10px;padding:11px 12px}.pill{border-radius:20px;background:#1e3b51;color:#a9dce5;padding:7px 10px;font-size:12px}.chart-card,.aside{background:#111e30;border:1px solid #273c52;border-radius:16px;padding:18px}.chart-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}.chart-heading h2{margin:0;font-size:16px}.chart-heading p,.small{font-size:12px;color:#98abc3;line-height:1.8}.chart-heading p{margin:6px 0 12px}.last-price{direction:ltr;unicode-bidi:isolate;color:#6fdccd;font-weight:bold;font-size:26px}.last-price small{font-size:12px;color:#a0b3cb;font-weight:normal}.chart-frame{width:100%;height:clamp(330px,52vh,640px);min-height:330px;position:relative}.chart-empty{min-height:360px;display:grid;place-items:center;border:1px dashed #34516f;border-radius:12px;color:#a5b9d0;text-align:center}.license{font-size:12px;line-height:2;color:#91a6c1;margin-top:14px}.aside h3{margin:0 0 18px;font-size:17px}.datum{display:flex;justify-content:space-between;gap:12px;align-items:start;border-bottom:1px solid #283a52;padding:13px 0}.datum span{color:#9aabc4;font-size:12px}.datum strong{font-weight:500;font-size:12px;text-align:left;max-width:66%;word-break:break-word}.notice{padding:14px;border:1px solid #3b6071;background:#183047;border-radius:12px;margin:22px 0}.notice strong{font-size:12px;color:#74d8cf}.notice p{color:#bed0df;font-size:12px;line-height:2;margin:7px 0 0}@media(max-width:850px){.layout{grid-template-columns:1fr}.shell{padding:14px}.chart-card,.aside{padding:13px}.header h1{font-size:23px}.last-price{font-size:20px}}
+
+/* Paper-only position panel: manual scenario inputs, never broker execution. */
+.paper-trading{margin-top:22px;border-top:1px solid #37506b;padding-top:18px}
+.paper-title{display:flex;align-items:start;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.paper-title h3{margin:0;font-size:15px}
+.paper-badge{border:1px solid #536e9b;background:#1c2940;color:#a5d4ff;border-radius:7px;padding:5px 8px;font-size:10px;letter-spacing:.3px;direction:ltr}
+.paper-disclosure,.paper-footnote{font-size:11px;line-height:2;color:#b7c7db}
+.paper-disclosure{padding:12px;background:#203149;border:1px solid #435773;border-radius:9px}
+.paper-footnote{padding-top:8px;opacity:.9}
+.paper-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 9px;margin-top:12px}
+.paper-grid label,.paper-manual label{display:flex;flex-direction:column;gap:6px;color:#bcd0e8;font-size:11px}
+.paper-grid input:not([type=checkbox]),.paper-grid select,.paper-manual input{width:100%;min-width:0;background:#091827;color:#f1f7ff;border:1px solid #466080;border-radius:8px;padding:10px 8px;font:inherit;font-size:13px;direction:ltr;text-align:left}
+.paper-grid label.paper-switch{flex-direction:row;align-items:center;gap:8px;padding-top:17px}
+.paper-switch input{accent-color:#44d7ba;width:15px;height:15px}
+.paper-grid :disabled{opacity:.65}
+.paper-action,.paper-plain,.paper-reset{padding:11px 12px;border-radius:9px;border:1px solid #3a6380;cursor:pointer;font-size:12px}
+.paper-action{background:#137d76;color:#fff;margin-top:12px;font-weight:600;width:100%}
+.paper-plain{background:#2a364b;color:#dceaff}
+.paper-reset{background:transparent;color:#abd7f3;margin-top:15px}
+.paper-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:16px 0}
+.paper-metrics div{background:#162b40;border:1px solid #31455e;border-radius:9px;padding:10px;min-width:0}
+.paper-metrics span{display:block;font-size:10px;color:#a2b3ca;margin-bottom:6px}
+.paper-metrics strong{display:block;direction:ltr;text-align:right;overflow-wrap:anywhere;font-size:13px;color:#f0f6ff}
+.paper-metrics strong.paper-positive{color:#4edbbb}.paper-metrics strong.paper-negative{color:#fa8e95}
+.paper-manual{border-top:1px solid #354963;padding-top:12px}
+.paper-buttons{display:flex;gap:8px;align-items:stretch}
+.paper-buttons button{flex:1}
+.paper-outcome{background:#1d3f49;border:1px solid #327f81;border-radius:8px;padding:10px;font-size:11px;line-height:1.9}
+.paper-events{margin-top:12px;color:#a8bfd8;font-size:11px}
+.paper-events summary{cursor:pointer}
+.paper-events ol{padding-right:22px;max-height:170px;overflow:auto;direction:rtl}
+.paper-events li{margin:8px 0}
+.paper-events li small{display:block;font-size:9px;color:#7893ae}
+.paper-error{background:#492633;color:#ffc4c8;padding:10px;border-radius:9px;font-size:12px}
+@media(max-width:390px){.paper-grid,.paper-metrics{grid-template-columns:1fr}}
+
+
+.paper-picker{display:flex;flex-direction:column;gap:8px;font-size:11px;color:#abc0d9;margin:12px 0}
+.paper-picker select{font:inherit;border:1px solid #405d7b;background:#102337;color:#dcecf9;padding:10px 8px;border-radius:8px;max-width:100%}
+.paper-setup{border:1px solid #35536c;border-radius:11px;padding:12px;margin-top:10px}
+.paper-setup summary{cursor:pointer;color:#a6e2df;font-size:12px;font-weight:600}
+.paper-tools{margin-top:16px;align-items:center}
+.paper-tools button{font-size:10px;min-height:40px}
+.paper-trend-card{margin:13px 0;padding:12px;background:#10283a;border:1px solid #335672;border-radius:11px}
+.paper-trend-card>strong{display:block;font-size:12px;margin-bottom:8px;color:#bbe8e3}
+.paper-trend-card svg{display:block;width:100%;height:auto;max-height:120px;background:#0c1e2e;border-radius:8px}
+.paper-trend-card .paper-metrics{margin:9px 0;gap:5px}
+.paper-trend-card .paper-metrics div{padding:8px}
+.paper-trend-card small{font-size:10px;color:#9db2ca;line-height:1.7}
