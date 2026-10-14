@@ -34,3 +34,12 @@ A user can create up to **10 concurrent paper positions** (maximum **50 stored p
 ## Next gate: genuinely updating paper prices
 
 A future **server-owned simulation worker** can accept only authenticated, explicitly entitled, fresh, sequenced real bid/ask from a vetted provider; validate via the quote guard; maintain durable server-side paper positions with a tamper-resistant event log, idempotent state transitions, gap/outage reconciliation, clock/skew handling, open-market sessions and role-based access. Client controls remain **paper only**. Instrument-specific spread, price precision, stop behavior and session rules must be configured. Actual buying/selling requires a **separate explicit product and security authorization** and is out of scope.
+
+
+## Scenario-only trend and risk/reward
+
+The React panel also displays a compact **manual-scenario sparkline** from entered OPEN/MARK prices and a descriptive trend classification computed by `packages/market-domain/src/paper-trend.mjs`. At least five prices are required; otherwise it returns `INSUFFICIENT_SCENARIO_DATA`. It compares 3- and 5-observation simple moving averages and five-point momentum, with a narrow neutral range. Initial gross `take_profit_distance / stop_loss_distance` is displayed as an educational risk/reward ratio; it excludes costs and does not claim expected realized profit.
+
+This is **NOT technical analysis of a live market**: it is analysis of user-entered fictional scenarios. It is **not a forecast**, signal, financial advice, tradeable price discovery or automatic trigger for any real order. The calculated direction must never replace the market quality, legal entitlement and executable bid/ask checks.
+
+The six paper-trend unit tests cover insufficient data, rising, falling and sideways manual sequences, initial risk/reward and invalid state. `node --test packages/market-domain/test/paper-*.test.mjs` covers all paper suites.
