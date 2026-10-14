@@ -17,11 +17,11 @@ jobs:
         with:
           node-version: '22'
       - name: Verify paper position unit tests
-        run: node --test packages/market-domain/test/paper-position.test.mjs
+        run: node --test packages/market-domain/test/paper-*.test.mjs
       - name: Guard pure module against broker/network imports
         shell: bash
         run: |
-          if grep -Ein '(from|import).*([@/](ccxt|broker|exchange|trading|ethers|web3)|node:(http|https|net|child_process))|\b(fetch|WebSocket|XMLHttpRequest|placeOrder|submitOrder|executeOrder)\s*\(' packages/market-domain/src/paper-position.mjs; then
+          if grep -Ein '(from|import).*([@/](ccxt|broker|exchange|trading|ethers|web3)|node:(http|https|net|child_process))|\b(fetch|WebSocket|XMLHttpRequest|placeOrder|submitOrder|executeOrder)\s*\(' packages/market-domain/src/paper-position.mjs packages/market-domain/src/paper-workspace.mjs packages/market-domain/src/paper-quote-guard.mjs; then
             echo "Paper-position module unexpectedly calls networking/broker APIs." >&2
             exit 1
           fi
