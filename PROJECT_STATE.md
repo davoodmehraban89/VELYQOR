@@ -91,3 +91,12 @@ Phase 1 — Market Data Integrity & Data Proof.
 
 ## Next checkpoint
 Securely connect the Navasan and Alpha Vantage runtime credentials and the Neon database credential to Cloudflare Hyperdrive without committing or exposing secrets; execute continuous live Data Proof for all three required instruments; record provider and Hyperdrive evidence; then close Phase 1 only if all external gates pass.
+
+## 2026-10-15 — Public app blank-screen incident, non-destructive diagnosis
+
+- User reports `https://app.chartnova.ir/` appears completely blank (white or black) on their device. **Not yet reproduced on the user device.**
+- Cloudflare zone/DNS/routes/Worker inspected: zone Active, Worker `velyqor-preview` deployed since 2026-10-11, proxied route intact, public Google resolver delivers A/AAAA records, all selected read-only market APIs reachable.
+- Real browser diagnostics on GitHub Actions run [38643795890](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38643795890) **PASSED**: three Chromium desktop/mobile and two Safari-like WebKit emulation sessions, with fresh Service Workers enabled/disabled, all HTTP 200, populated/visible dashboard, no script/console/network errors. Production 61 KB inline HTML also passed JavaScript syntax check.
+- Deployed Worker includes `chartnova-v1` Service Worker caching root offline, which is **a hypothesis** for existing browser cache differences, not a proven cause.
+- Decision: **No production changes yet**. Ask user to compare `https://chartnova.ir/` (separate origin, same Worker), private tab and an alternate network; then identify exact browser/device and clear only site-specific data if isolation supports it.
+- Diagnostic tests and full verified evidence tracked in Draft [PR #28](https://github.com/davoodmehraban89/VELYQOR/pull/28) and [incident record](docs/operations/chartnova-blank-screen-diagnostic-2026-10-15.md). Never mark user-facing incident resolved until their device opens the site.
