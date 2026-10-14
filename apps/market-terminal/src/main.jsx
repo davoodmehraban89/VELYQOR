@@ -3,6 +3,7 @@ import {createRoot} from "react-dom/client";
 import {createChart,CandlestickSeries,LineSeries,CrosshairMode} from "lightweight-charts";
 import {normalizeHistoryResponse,normalizeStreamUpdate} from "../../../packages/market-feed/src/chart-adapter.mjs";
 import "./style.css";
+import PaperTradingPanel from "./PaperTradingPanel.jsx";
 
 const SYMBOLS=[
  {value:"EUR_USD_ECB",label:"EUR/USD · نرخ مرجع بانک مرکزی اروپا"},
@@ -14,10 +15,11 @@ const WS_BASE=(import.meta.env.VITE_MARKET_WS_BASE||"").replace(/\/$/,"");
 const allowedSymbol=(symbol)=>SYMBOLS.some(item=>item.value===symbol);
 const number=(value)=>new Intl.NumberFormat("fa-IR",{maximumFractionDigits:6}).format(value);
 
-function ChartPane({model,lastTick,chartRef}){
+function ChartPane({model,lastTick,chartRef,paperPosition}){
  const host=useRef(null);
  const series=useRef(null);
  const lastTime=useRef(null);
+ const paperLines=useRef([]);
  useEffect(()=>{
   if(!host.current||!model)return;
   const chart=createChart(host.current,{
@@ -43,11 +45,30 @@ function ChartPane({model,lastTick,chartRef}){
   if(!newer)return;
   try{series.current.update(lastTick);lastTime.current=value}catch{}
  },[lastTick,model]);
+ useEffect(()=>{
+  const active=series.current;
+  if(!active)return;
+  for(const line of paperLines.current){try{active.removePriceLine(line)}catch{}}
+  paperLines.current=[];
+  if(!paperPosition||paperPosition.symbol!==model?.symbol)return;
+  const thresholds=[
+   {price:paperPosition.entryPrice,title:"ورود فرضی",color:"#dce6f3"},
+   {price:paperPosition.stopPrice,title:"حد ضرر آزمایشی",color:"#ff8c88"},
+   {price:paperPosition.takeProfitPrice,title:"حد سود آزمایشی",color:"#62dbc5"},
+  ];
+  for(const t of thresholds){
+   if(Number.isFinite(t.price)&&t.price>0)paperLines.current.push(active.createPriceLine({
+    price:t.price,color:t.color,lineWidth:1,lineStyle:2,axisLabelVisible:true,title:t.title
+   }));
+  }
+  return ()=>{for(const line of paperLines.current){try{active.removePriceLine(line)}catch{}}paperLines.current=[]};
+ },[paperPosition,model]);
  return <div className="chart-frame" ref={host} role="img" aria-label={model?.kind==="candle"?"نمودار کندل منبع دارای مجوز":"نمودار خطی نرخ مرجع روزانه"} />;
 }
 function App(){
  const [symbol,setSymbol]=useState("EUR_USD_ECB");
  const [model,setModel]=useState(null);
+ const [paperPosition,setPaperPosition]=useState(null);
  const [status,setStatus]=useState("در انتظار دریافت تاریخچه...");
  const [wsStatus,setWsStatus]=useState("غیرفعال: درگاه استریم هنوز منتشر نشده");
  const [lastTick,setLastTick]=useState(null);
@@ -115,7 +136,7 @@ function App(){
    <section className="main-column">
     <div className="toolbar">
      <label htmlFor="symbol">نماد</label>
-     <select id="symbol" value={symbol} onChange={e=>setSymbol(e.target.value)}>
+     <select id="symbol" value={symbol} onChange={e=>{setSymbol(e.target.value);setPaperPosition(null)}}>
       {SYMBOLS.map(s=><option value={s.value} key={s.value}>{s.label}</option>)}
      </select>
      <span className="pill">{model?.kind==="candle"?"شمع‌های واقعی OHLC":"نمودار خطی · نرخ مرجع روزانه"}</span>
@@ -125,7 +146,7 @@ function App(){
       <div><h2>{SYMBOLS.find(s=>s.value===symbol)?.label}</h2><p>{status}</p></div>
       <div className="last-price">{close===null?"—":number(close)} <small>{model?.unit??""}</small></div>
      </div>
-     {model?<ChartPane model={model} lastTick={lastTick} chartRef={chartRef}/>:<div className="chart-empty">{status}</div>}
+     {model?<ChartPane model={model} lastTick={lastTick} chartRef={chartRef} paperPosition={paperPosition}/>:<div className="chart-empty">{status}</div>}
     </div>
     <p className="license">نمودار با <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Lightweight Charts™ توسط TradingView</a> ساخته شده است. این محصول وابسته به TradingView نیست.</p>
    </section>
@@ -137,6 +158,7 @@ function App(){
     <div className="datum"><span>WebSocket</span><strong>{wsStatus}</strong></div>
     <div className="notice"><strong>تفکیک الزامی داده‌ها</strong><p>نرخ مرجع ECB فقط در نمودار خطی دیده می‌شود. شمع‌ها صرفاً وقتی API داده OHLC واقعی با حق انتشار تأییدشده برگرداند ایجاد می‌شوند.</p></div>
     <p className="small">{model?.attribution??"برای اطلاعات منبع به API رجوع کنید."}</p>
+    <PaperTradingPanel key={symbol} symbol={symbol} onPositionChange={setPaperPosition} />
    </aside>
   </main>
  </div>;
