@@ -34,3 +34,17 @@
 .paper-events li small{display:block;font-size:9px;color:#7893ae}
 .paper-error{background:#492633;color:#ffc4c8;padding:10px;border-radius:9px;font-size:12px}
 @media(max-width:390px){.paper-grid,.paper-metrics{grid-template-columns:1fr}}
+
+
+.paper-picker{display:flex;flex-direction:column;gap:8px;font-size:11px;color:#abc0d9;margin:12px 0}
+.paper-picker select{font:inherit;border:1px solid #405d7b;background:#102337;color:#dcecf9;padding:10px 8px;border-radius:8px;max-width:100%}
+.paper-setup{border:1px solid #35536c;border-radius:11px;padding:12px;margin-top:10px}
+.paper-setup summary{cursor:pointer;color:#a6e2df;font-size:12px;font-weight:600}
+.paper-tools{margin-top:16px;align-items:center}
+.paper-tools button{font-size:10px;min-height:40px}
+.paper-trend-card{margin:13px 0;padding:12px;background:#10283a;border:1px solid #335672;border-radius:11px}
+.paper-trend-card>strong{display:block;font-size:12px;margin-bottom:8px;color:#bbe8e3}
+.paper-trend-card svg{display:block;width:100%;height:auto;max-height:120px;background:#0c1e2e;border-radius:8px}
+.paper-trend-card .paper-metrics{margin:9px 0;gap:5px}
+.paper-trend-card .paper-metrics div{padding:8px}
+.paper-trend-card small{font-size:10px;color:#9db2ca;line-height:1.7}
