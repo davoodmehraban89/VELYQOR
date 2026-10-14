@@ -19,6 +19,8 @@ jobs:
       - name: Prepare isolated diagnostic browser
         run: |
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
-          npx playwright install --with-deps chromium
-      - name: Inspect deployed site in mobile and desktop browsers
+          npx playwright install --with-deps chromium webkit
+      - name: Inspect deployed site in mobile and desktop Chromium
         run: node scripts/diagnose-chartnova-public.mjs
+      - name: Inspect deployed site in Safari-like mobile WebKit
+        run: node scripts/diagnose-chartnova-webkit.mjs
