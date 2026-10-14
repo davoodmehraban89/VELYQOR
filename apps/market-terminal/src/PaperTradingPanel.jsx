@@ -4,10 +4,24 @@ import {
   closePaperWorkspacePosition, paperWorkspaceSummary, restorePaperWorkspace,
   exportPaperWorkspaceCSV
 } from '../../../packages/market-domain/src/paper-workspace.mjs';
+import {analyzePaperTrend,initialPaperRiskReward} from '../../../packages/market-domain/src/paper-trend.mjs';
 
 const KEY = 'velyqor.paper-workspace.v1';
 const fmt = value => Number.isFinite(value) ?
   new Intl.NumberFormat('fa-IR',{maximumFractionDigits:6}).format(value) : '—';
+function PaperSparkline({prices}){
+  if(!prices||prices.length<2)return <span>برای نمایش روند به حداقل دو قیمت سناریویی نیاز است.</span>;
+  const min=Math.min(...prices),max=Math.max(...prices),spread=Math.max(0.000001,max-min);
+  const points=prices.map((value,index)=>{
+    const x=10+index*280/(prices.length-1);
+    const y=65-(value-min)/spread*50;
+    return x.toFixed(2)+','+y.toFixed(2);
+  }).join(' ');
+  return <svg viewBox="0 0 300 75" role="img" aria-label="نمودار تغییرات قیمت‌های فرضی واردشده">
+    <polyline points={points} fill="none" stroke="#61dbc8" strokeWidth="2"
+      strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+  </svg>;
+}
 function init(){
   try {
     const raw=window.localStorage.getItem(KEY);
@@ -43,6 +57,8 @@ export default function PaperTradingPanel({symbol,onPositionChange}){
   const selected=localPositions.find(p=>p.id===selectedId)??localPositions.at(-1)??null;
   const position=selected?.position??null;
   const report=position?summary.positions.find(p=>p.id===selected.id):null;
+  const trend=position?analyzePaperTrend(position):null;
+  const ratio=position?initialPaperRiskReward(position):null;
 
   useEffect(()=>{
     if(blocked)return;
@@ -169,6 +185,18 @@ export default function PaperTradingPanel({symbol,onPositionChange}){
           <strong className={report.netPnL>=0?'paper-positive':'paper-negative'}>{fmt(report.netPnL)} ({fmt(report.netPnLPct)}٪)</strong>
         </div>
       </div>
+      {trend&&<section className="paper-trend-card" aria-label="تحلیل توصیفی سناریوی دستی">
+        <strong>روند سناریوی آموزشی، نه پیش‌بینی بازار</strong>
+        <PaperSparkline prices={trend.points}/>
+        <div className="paper-metrics">
+          <div><span>وضعیت نمونه‌های دستی</span><strong>{trend.classification==='UP'?'صعودی':
+            trend.classification==='DOWN'?'نزولی':trend.classification==='SIDEWAYS'?'خنثی':'داده ناکافی'}</strong></div>
+          <div><span>تعداد نمونه</span><strong>{fmt(trend.sampleCount)}</strong></div>
+          <div><span>تغییر پنج نمونه اخیر (%)</span><strong>{fmt(trend.momentumPercent)}</strong></div>
+          <div><span>نسبت سود هدف به ریسک اولیه</span><strong>{fmt(ratio)} به ۱</strong></div>
+        </div>
+        <small>این محاسبات فقط روی قیمت‌های فرضی واردشده انجام می‌شوند و سیگنال خریدوفروش نیستند.</small>
+      </section>}
       {position.status==='OPEN'&&<div className="paper-manual">
         <label>قیمت مرحله بعد (فقط سناریوی دستی)
           <input type="number" min="0" step="any" value={nextPrice}
