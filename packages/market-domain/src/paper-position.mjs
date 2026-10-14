@@ -29,7 +29,10 @@ const asTimestamp = (timestamp, name) => {
   }
   return new Date(timestamp).toISOString();
 };
-const decimal = (x) => Math.round(x * 1e10) / 1e10;
+const decimal = (x) => {
+  const rounded = Math.round(x * 1e10) / 1e10;
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
 const sideSign = (side) => side === 'LONG' ? 1 : -1;
 
 export function openPaperPosition({
