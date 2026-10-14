@@ -2,6 +2,25 @@
 
 Last updated: 2026-10-07
 
+Last checked (GitHub-only): 2026-10-14
+
+> **IMPORTANT — review-branch status overlay (not yet merged into main).** The detailed sections below preserve the 2026-10-07 Phase-1 baseline. Its claims about disconnected provider keys and CI do **not** reflect a 2026-10-14 live runtime revalidation. Cloudflare previously exposed a `NAVASAN_API_KEY` secret name (not a verified end-to-end data proof); the current connected secret values were not read.
+
+## Current safety checkpoint — 2026-10-14
+
+- Working source of truth remains `main` at `29a45cff094658c7a2722fa6fa712bef061abb8c` until explicitly merged; review branch: `safety/p0-triage-2026-10-13`.
+- Open PRs [#21](https://github.com/davoodmehraban89/VELYQOR/pull/21), [#22](https://github.com/davoodmehraban89/VELYQOR/pull/22), [#23](https://github.com/davoodmehraban89/VELYQOR/pull/23), [#24](https://github.com/davoodmehraban89/VELYQOR/pull/24), [#25](https://github.com/davoodmehraban89/VELYQOR/pull/25), and [#26](https://github.com/davoodmehraban89/VELYQOR/pull/26). PR #23 is based on the history feature branch; PR #24 is based on #23. PR #25 and #26 are isolated reviews from `main`.
+- GitHub CI: #21, #22, #23 succeeded on second attempts 2026-10-14; #24 succeeded on its latest verified attempt 2026-10-12; #25 and #26 succeeded on 2026-10-14. A green CI does **not** establish data licensing, provider uptime, a real production Neon→Worker connection, or deployed streaming.
+- **P0 PROTECT:** last verified Windows evidence included 9 tracked modifications, 1085 untracked paths and 5 worktrees. Desktop Commander was offline on 2026-10-14. No cleaning, overwriting or migration applied.
+- **P0 BLOCK_IMPORT:** untracked `db/migrations/0005_navasan_private_daily_ohlc.sql` conflicts with existing adapter IRR→IRT assumptions. No import or migration before source-confirmed units/quote side, rights and reviewed dry-run.
+- **P0 BLOCK_REDISTRIBUTION:** commercial source-OHLC storage and public redistribution rights remain unverified. ECB observations are reference points, not OHLC candles.
+- **P0 NO_LIVE_ORDERS:** AI/signals cannot place live orders; independent order/risk controls and separate approval are required before any trading layer.
+- Next actions: review independent #21/#22/#25/#26 for prospective merges; preserve #23/#24 as Draft until dependency, license, Neon reader, staging and end-to-end gates pass; verify Windows and provider documentation when available.
+- Auditable details and ownership: [P0 triage](docs/security/P0_TRIAGE_2026-10-12_FA.md), [release safety gates](docs/security/P0_RELEASE_GATES.md), [PR readiness](docs/security/PR_READINESS_2026-10-14_FA.md).
+- **Status of this checkpoint:** documentation and CI pass on review branches; **no merge to `main`, no operational deployment, no credential changes, no trade**.
+
+---
+
 ## Current phase
 Phase 1 — Market Data Integrity & Data Proof.
 
