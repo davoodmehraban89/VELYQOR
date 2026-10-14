@@ -95,7 +95,7 @@ test('summary reports signed percentage return and audit event count',()=>{
   let p=open({takeProfitPercent:20});
   p=step(p,99,1);
   const s=paperRiskSummary(p);
-  assert.equal(s.netPnLPct,-10);
+  assert.equal(s.netPnLPct,-1);
   assert.equal(s.eventCount,2);
   assert.equal(s.status,'OPEN');
 });
