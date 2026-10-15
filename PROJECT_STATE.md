@@ -2,13 +2,13 @@
 
 ## 2026-10-15 — Current confirmed state: stable v26 + light-market Stage 1 in Draft PR #30
 
-- **LIVE production:** The prior Cloudflare v27 initial-loading performance hotfix was **rolled back** after the user reported failure to open the site. The most recent checked active deployment is **v26** \`85177f9d-09c0-4763-b28c-2c6ba5ae5be5\` at 100%, rollback deployment \`78155d6f-11fc-4d1b-ab4f-7c0a97474406\`, UTC 2026-10-15 05:59. The user later confirmed \`https://chartnova.ir/\` opens and its speed is better. This current checkpoint supersedes the time-specific v27 deployment description below.
-- **Development:** Draft [PR #30](https://github.com/davoodmehraban89/VELYQOR/pull/30) adds new read-only \`/api/markets/summary\` projection and lazy source-verified per-symbol series, without changing legacy \`/api/markets\`. **Not merged or deployed**; the stable production Worker stays v26.
+- **LIVE production:** The prior Cloudflare v27 initial-loading performance hotfix was **rolled back** after the user reported failure to open the site. The most recent checked active deployment is **v26** `85177f9d-09c0-4763-b28c-2c6ba5ae5be5` at 100%, rollback deployment `78155d6f-11fc-4d1b-ab4f-7c0a97474406`, UTC 2026-10-15 05:59. The user later confirmed `https://chartnova.ir/` opens and its speed is better. This current checkpoint supersedes the time-specific v27 deployment description below.
+- **Development:** Draft [PR #30](https://github.com/davoodmehraban89/VELYQOR/pull/30) adds new read-only `/api/markets/summary` projection and lazy source-verified per-symbol series, without changing legacy `/api/markets`. **Not merged or deployed**; the stable production Worker stays v26.
 - **Data-size evidence:** Actual verified live 58-market response ~85,202 bytes; projected read-only summary 15,898 bytes (about 81% smaller). No synthesis/conversion of price units, no OHLC or execution-feed claims.
-- **Tests:** 10 domain tests, 5 fail-closed patcher/integration tests, plus a real-public-v26-HTML browser simulation using actual live catalog and on-demand USD/EUR symbol endpoints; 58 cards and both charts displayed, zero JS errors. This test **did not deploy any Worker version**.
+- **Tests:** 10 domain tests, 5 fail-closed patcher/integration tests, plus a real-public-v26-HTML browser simulation using actual live catalog and on-demand USD/EUR symbol endpoints; 58 cards and both charts displayed in **Chromium and WebKit** (Safari-like), zero JS errors. Workflow [38727115977](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38727115977) succeeded. This test **did not deploy any Worker version**.
 - **Technical blocker before staged rollout:** Cloudflare's Worker Script Download currently returns the **last uploaded** v27 code, not the **currently deployed** v26. Source/etag provenance of v26 must be established and stage-only Cloudflare upload with binding/cron parity verified. Do not substitute the v27 source or auto-apply an incompatible patch.
 - **Next action:** maintain the user-confirmed stable site; expand browser tests and monitor provider rights/freshness. The owner must separately authorize any production release. No real trading, no Neon migration, no credential mutation.
-- **Proof:** \`docs/operations/chartnova-compact-catalog-stage1-2026-10-15.md\`; open PR #30.
+- **Proof:** `docs/operations/chartnova-compact-catalog-stage1-2026-10-15.md`; open PR #30.
 
 ---
 
