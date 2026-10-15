@@ -22,7 +22,8 @@ const report={scenario:'actual_v27_service_worker_offline_and_artificial_poison'
 try{
  const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,serviceWorkers:'allow'});
  await ctx.route('**/api/**',r=>r.fulfill({status:503,contentType:'application/json',body:'{"ok":false,"error":"STAGING_ONLY"}'}));
- await ctx.route(host,r=>r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
+ let simulateOffline=false;
+ await ctx.route(host,r=>simulateOffline?r.abort('internetdisconnected'):r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
  await ctx.route('**/sw.js',r=>r.fulfill({status:200,contentType:'application/javascript',body:sw}));
  // Cache installation assets; no request to production and no provider/DB mutation.
  await ctx.route('**/icon.svg',r=>r.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg"/>'}));
@@ -33,6 +34,7 @@ try{
  await page.goto(host,{waitUntil:'domcontentloaded',timeout:20000});
  await page.waitForFunction(()=>!!navigator.serviceWorker?.controller,undefined,{timeout:12000});
  await page.waitForFunction(async()=> (await caches.keys()).includes('chartnova-v1'),undefined,{timeout:12000});
+ simulateOffline=true;
  await ctx.setOffline(true);
  await page.reload({waitUntil:'domcontentloaded',timeout:16000});
  report.validCachedOfflineVisible=await page.evaluate(()=>!!document.querySelector('.shell')&&
@@ -47,6 +49,7 @@ try{
    document.title==='TEST-CORRUPT'&&!document.querySelector('.shell')&&
    (document.body?.innerText.length??0)===0);
  await ctx.setOffline(false);
+ simulateOffline=false;
  await page.reload({waitUntil:'domcontentloaded',timeout:16000});
  report.onlineRecoveredVisible=await page.evaluate(()=>
    !!document.querySelector('.shell')&&document.querySelector('.shell').getBoundingClientRect().width>80);
