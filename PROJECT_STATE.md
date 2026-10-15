@@ -1,5 +1,19 @@
 # VELYQOR Project State
 
+
+## 2026-10-15 — ChartNova production performance hotfix (deployed, verified)
+
+- **User request:** fix delayed/blank-to-loaded ChartNova initial data, prioritizing visible quote cards and avoiding unnecessary waiting.
+- **Actual live Worker fixed:** `velyqor-preview` Cloudflare **v27** `2cbeb4e2-4a3e-414f-b3ad-035e2378650b`, deployment `c68b8340-398a-462b-9fe0-c635aba405fe`, rolled out at 100% on `2026-10-15T05:22:32Z`. Original v26 `85177f9d-09c0-4763-b28c-2c6ba5ae5be5` is retained for immediate rollback.
+- **Change scope:** only production homepage inline JavaScript; progressive main-card render; explicit partial loading; lazy hidden market/technical rendering and de-duplicated refresh. **No change to API response contracts, data prices/units, provider licensing, KV namespace, secrets, cron, DNS, database, trades or Worktrees.**
+- **Verification:** 4/4 isolated JS patch tests passed. Staged mobile browser found 58/58 cards and working technical chart; quotes exactly matched previous production and no JS/network failures. Under intentionally delayed 10-second `/api/markets`, main USD/Gold cards and partial status appeared before the slow feed finished. Following deployment, public `/`, `/api/domestic`, `/api/markets` (58), `/api/xau`, `/api/widget` all responded successfully.
+- **Risk controls:** Cloudflare API verified full binding/handler parity between versions. No secret values were read. Keep old version for one-step rollback if post-deploy errors appear. User's actual device experience still requires confirmation.
+- **Traceability:** [PR #29](https://github.com/davoodmehraban89/VELYQOR/pull/29) and [operations/rollback guide](docs/operations/chartnova-production-progressive-loading-2026-10-15.md). GitHub `main` was not changed during the direct Cloudflare rollout; PR #29 is reviewed independently.
+- **Not completed:** universal network speed guarantee; shrink of 85KB full market-history payload; new Paper Trading live deployment; Neon/WS real trading/feeds. These are separate staged milestones.
+
+---
+
+
 Last updated: 2026-10-07
 
 Last checked (GitHub-only): 2026-10-14
