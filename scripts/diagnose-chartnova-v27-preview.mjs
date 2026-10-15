@@ -9,8 +9,13 @@ import { Script } from 'node:vm';
 const V27='https://2cbeb4e2-velyqor-preview.davoodmehraban89.workers.dev/';
 const V26='https://app.chartnova.ir/';
 const readHtml=async url=>{
- const response=await fetch(url,{signal:AbortSignal.timeout(18000)});
- if(!response.ok)throw Error('Unable to fetch versioned HTML, HTTP '+response.status);
+ let response=null;
+ for(let attempt=0;attempt<3;attempt++){
+  try{ response=await fetch(url,{signal:AbortSignal.timeout(18000)}); if(response.ok)break; }
+  catch(e){if(attempt===2)throw Error('versioned_HTML_network_unavailable_after_3_attempts');}
+  if(attempt<2)await new Promise(done=>setTimeout(done,1000*(attempt+1)));
+ }
+ if(!response?.ok)throw Error('Unable to fetch versioned HTML after retries, HTTP '+response?.status);
  const html=await response.text();
  const js=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
  if(!js||!html.includes('class="shell"'))throw Error('No classic ChartNova shell / JS in version URL');
