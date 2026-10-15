@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/diagnose-chartnova-v27-preview.mjs'
+      - 'scripts/diagnose-chartnova-v27-sw-cache.mjs'
       - 'scripts/diagnostics/bale-one-message-test.mjs'
       - 'scripts/diagnostics/bale-one-message-test.test.mjs'
       - '.github/workflows/chartnova-stage2-diagnostics.yml'
@@ -29,3 +30,5 @@ jobs:
           npx playwright install --with-deps chromium webkit
       - name: Load existing v27 version URL in isolated browsers with synthetic failing API responses
         run: node scripts/diagnose-chartnova-v27-preview.mjs
+      - name: Verify original version 27 Service Worker fallback in disposable cache only
+        run: node scripts/diagnose-chartnova-v27-sw-cache.mjs
