@@ -1,0 +1,39 @@
+name: ChartNova light catalog and lazy history CI
+on:
+  pull_request:
+    paths:
+      - 'packages/market-domain/src/market-catalog-summary.mjs'
+      - 'packages/market-domain/test/market-catalog-summary.test.mjs'
+      - 'scripts/patch-chartnova-v26-light-catalog.mjs'
+      - 'scripts/patch-chartnova-v26-light-catalog.test.mjs'
+      - 'scripts/test-chartnova-live-html-simulator.mjs'
+      - '.github/workflows/chartnova-light-catalog.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  light-market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate compact market catalog contract
+        run: node --test packages/market-domain/test/market-catalog-summary.test.mjs
+      - name: Validate fail-closed v26 source integration and API compatibility
+        run: node --test scripts/patch-chartnova-v26-light-catalog.test.mjs
+      - name: Block real-trade and external-network dependencies
+        shell: bash
+        run: |
+          if grep -En 'from ["\x27](http|ws)|import\(["\x27](http|ws)|placeOrder|executeTrade|brokerApi|apiKey' packages/market-domain/src/market-catalog-summary.mjs scripts/patch-chartnova-v26-light-catalog.mjs; then
+            echo 'Unexpected external dependency or trading action in lightweight market integration'
+            exit 1
+          fi
+      - name: Install isolated Chromium for real-HTML integration test
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Simulate compact and lazy catalog against actual deployed v26 HTML (no deploy)
+        run: node scripts/test-chartnova-live-html-simulator.mjs
