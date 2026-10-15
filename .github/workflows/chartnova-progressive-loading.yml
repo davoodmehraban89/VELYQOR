@@ -1,0 +1,18 @@
+name: ChartNova progressive loading safety
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  optimize-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit test fail-closed Worker bootstrap patch
+        run: node --test scripts/optimize-chartnova-worker.test.mjs
