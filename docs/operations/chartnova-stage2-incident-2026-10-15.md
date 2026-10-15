@@ -42,6 +42,22 @@ Read-only Preview GET of /sw.js returned version 27 Service Worker code: cache k
 
 Actual root cause of prior v27 device failure: **تأییدنشده**. Record of rollback decision: [documented incident](https://github.com/davoodmehraban89/VELYQOR/blob/ops/chartnova-emergency-rollback-2026-10-15/PROJECT_STATE.md). The owner reported the public app stopped opening; rollback to v26 was a **precaution**, not a proven identification of a v27 JavaScript defect.
 
+
+## New owner-device observation — 2026-10-15 evening (unresolved)
+
+The owner tested the **same phone and network** and reported:
+- \`https://chartnova.ir/\` **did not open** in their usual browser session (whether the page was completely blank or displayed a browser transport error was not yet specified).
+- \`https://app.chartnova.ir/\` **did open** in a **Private** tab.
+
+**Diagnostic ambiguity:** Both origin and browser-session mode changed in this comparison. This does **not** by itself isolate a host/DNS cause or a cached-Service-Worker cause. Two missing cross-over cases are essential: (1) \`chartnova.ir\` in **Private** mode, and (2) \`app.chartnova.ir\` in an ordinary **non-Private** tab on the same phone/network. Record symptom type separately (blank page vs network error vs endless loading) and do not clear cookies/cache before capturing evidence.
+
+External read-only checks after this report (TinyFish parallel GET, 2026-10-15) showed both origin homepages returned equivalent extracted 2,606-character UI, the two \`/sw.js\` bodies were **byte-identical 507-character code**, and both \`/api/domestic\` JSON responses succeeded with equal captured USD and gold prices. The original service worker uses network-first navigation with \`caches.match('/')\` after a network failure, and storage/cache is per origin. These are **external observations only**; they do not refute the owner's on-device report or prove a bad cache.
+
+**Next gate:** Wait for the two cross-over results. If the same origin opens only in Private, prioritize normal-session browser storage, Service Worker/cache and content blocking; if the same browser mode opens only on one origin, prioritize host-specific request, WAF/routing, TLS/DNS and browser origin settings. If both fail intermittently, capture network type, VPN and request timing. All interpretations are **hypotheses**, not confirmed root causes.
+
+**Operational constraint:** no Cloudflare/DNS/KV/DB edit, cache reset, or new production deployment was made for this analysis. Root cause still **تأییدنشده**.
+
+
 ## Exact information needed from owner for a conclusive device-level diagnosis
 
 Supply SANITIZED screenshots and status only; never paste credentials, session cookies, API tokens, whole HAR exports or personal address:
