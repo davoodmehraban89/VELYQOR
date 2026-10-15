@@ -1,5 +1,9 @@
 # ChartNova — Production Initial-Load Performance Fix (2026-10-15)
 
+
+> **ARCHIVAL / NOT CURRENT PRODUCTION STATE — 2026-10-15.** The v27 deployment described below was a real historical rollout but **was subsequently rolled back** after a user reported the site would not open. The repository last records v26 version ID **85177f9d-09c0-4763-b28c-2c6ba5ae5be5** at 100% in rollback deployment **78155d6f-11fc-4d1b-ab4f-7c0a97474406** at 05:59:12 UTC. This is repository evidence, **not a fresh Cloudflare inspection**. The *reason for the rollback decision* was the user-facing outage report; the *technical root cause* is **تأییدنشده** without affected-device traces. Do **NOT** redeploy v27 or treat this document's original "deployed" section as current. See [Stage-1 timeline / missing evidence](chartnova-stage1-production-reconciliation-2026-10-15.md), [rollback record](https://github.com/davoodmehraban89/VELYQOR/blob/ops/chartnova-emergency-rollback-2026-10-15/PROJECT_STATE.md), and [production manifest](production-manifest.json).
+ 
+
 ## Verified incident and cause
 
 User reported that `https://app.chartnova.ir/` eventually opened but initial prices loaded late. Direct external API checks confirmed successful market data with 58 symbols, but `/api/markets` returned approximately 85 KB and response durations fluctuated.
