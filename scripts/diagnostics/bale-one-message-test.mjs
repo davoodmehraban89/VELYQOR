@@ -80,7 +80,7 @@ if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url){
   console.log(JSON.stringify(result));
   if(['FAILED','NOT_VERIFIED'].includes(result.status))process.exitCode=1;
  }catch(e){
-  console.error(JSON.stringify({status:'FAILED',reason:String(e.message).slice(0,130)}));
+  console.error(JSON.stringify({status:'FAILED',reason:'local_verification_or_network_failed_redacted'}));
   process.exitCode=1;
  }
 }
