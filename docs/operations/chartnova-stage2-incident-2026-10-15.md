@@ -22,6 +22,18 @@ GitHub Actions run [38765420366](https://github.com/davoodmehraban89/VELYQOR/act
 
 **NOT REPRODUCED** in those five scenarios. Page shell/dashboard visibly rendered, HTML 200 and **no uncaught JavaScript exceptions**. As expected, the Browser Console recorded the deliberately generated HTTP 503 resource errors; a few requests were aborted while reloading. These are test fixture failures, **not proof that production is error-free**. During market delay the UI displayed an explicit incomplete-data status.
 
+## Public-asset A/B comparison: v26 versus v27 (new evidence)
+
+GitHub Actions [run 38773838137](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38773838137), job **116556236854**, passed the immutable-version read-only comparison using [script](../../scripts/diagnose-chartnova-version-assets.mjs).
+
+- Exact versioned public responses for both v26 and v27 were retrieved by GET; HTML and JavaScript were parsed and hashed with SHA-256.
+- **Service Worker 507 bytes, byte-identical across v26 and v27:** SHA-256 `008057765a2bc7b9e94946136023db073f1113e573d1a8cb8b0236fa32911687`. Thus the deployment itself did not introduce a *new Service Worker script*.
+- **HTML outside the single inline `<script>` element is byte-identical** (normalizing only that element). Neither root HTML markup nor external shell was changed between these two immutable assets.
+- Inline JS SHA-256 v26: `975790c7aa98555ad598de5e3af9d06bcff9fa98bcc72522a3f0eb726aae807e`; v27: `0ef7cd41f63d28e82070ea1f6a15c85ba6e3876518d0d09e8ef119b0ef943535`; code differs and the known `chartnovaRefreshInFlight` marker is present only in v27.
+- The hash record is of **public HTML/SW/inline JS from preview**, NOT the complete Worker/backend module, full provider adapter code, or all HTTP response headers. No claim is made that server-side behavior cannot differ.
+
+**Decision:** Narrow investigation to inline JS runtime, network/CSP, old-device browser/PWA state and non-frontend Worker differences. A corrupted-cache fallback is a possible failure mechanism shared by both versions, not evidence of a v27-specific Service Worker regression. **Actual incident root cause: تأییدنشده.**
+
 ## Actual Service Worker mechanism and limits
 
 Read-only Preview GET of /sw.js returned version 27 Service Worker code: cache key **chartnova-v1**, install precaches root plus icon and manifest, and navigation uses network-first fetch with fallback to cache.match('/'). An **existing browser cache** can therefore influence the navigation response during loss of network. However, the first five-scenario test used a synthetic SW (without this cache behavior); it does **not** prove the real SW safe. Separate [real-SW browser test](../../scripts/diagnose-chartnova-v27-sw-cache.mjs) tests cache fallback and intentionally corrupted **disposable** browser cache. Any blank page created by injecting a corrupt cache is a hypothetical mechanism, **not proof this occurred for the owner**.
