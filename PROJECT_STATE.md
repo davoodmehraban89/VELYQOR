@@ -1,5 +1,17 @@
 # VELYQOR Project State
 
+## 2026-10-15 — URGENT: ChartNova v27 reverted after user outage report
+
+- **Latest confirmed Cloudflare production state:** Worker `velyqor-preview` is now running v26 `85177f9d-09c0-4763-b28c-2c6ba5ae5be5` at **100%**, rollback deployment `78155d6f-11fc-4d1b-ab4f-7c0a97474406`, UTC `2026-10-15T05:59:12.013397Z`. Prior v27 `2cbeb4e2-4a3e-414f-b3ad-035e2378650b` is **NOT deployed**.
+- **Trigger:** User reported after our optimization rollout, the site did not open at all on their device: `خیر افتضاح اصلا باز نشد`. Correlation does not prove root cause; rollback was chosen to limit risk. No DNS, KV, secret, database or price feed changes.
+- **After rollback:** Independent external GET `/`, `https://chartnova.ir/`, `/api/domestic`, `/api/markets` (58 instruments), `/api/xau`, and `/sw.js` returned. Reported API `ok:true`, non-stale for domestic/markets. Request latency approx 2.2–3.2 seconds from the tested external location.
+- **Incident status: OPEN / NOT VERIFIED ON USER DEVICE.** Remote external success is **not** user resolution. Do not re-release v27 based solely on passing GitHub/browser CI. Next isolate private-mode/site-specific service worker, root vs app hostname, VPN/Wi-Fi/cellular routing and actual device/browser error before another production modification.
+- Current repo PR #29 is a historical merged record of a **rolled-back** deployment. Its documentation below is time-specific archival evidence, not an assertion that v27 remains active.
+- Review and incident record: `docs/operations/chartnova-production-progressive-loading-2026-10-15.md`. No real-money trading/deployment changes authorized or made.
+
+---
+
+
 
 ## 2026-10-15 — ChartNova production performance hotfix (deployed, verified)
 
