@@ -7,9 +7,12 @@
 import {chromium} from 'playwright';
 const host='https://2cbeb4e2-velyqor-preview.davoodmehraban89.workers.dev/';
 const check=async path=>{
- const r=await fetch(host+path,{signal:AbortSignal.timeout(15000)});
- if(!r.ok)throw Error('Cannot get read-only '+path+' '+r.status);
- return r.text();
+ for(let attempt=0;attempt<3;attempt++){
+  try{const r=await fetch(host+path,{signal:AbortSignal.timeout(18000)});if(r.ok)return r.text();}
+  catch(e){if(attempt===2)throw Error('staged_SW_network_unavailable_after_3_attempts');}
+  if(attempt<2)await new Promise(done=>setTimeout(done,1000*(attempt+1)));
+ }
+ throw Error('staged_SW_HTTP_unavailable_after_retries');
 };
 const [html,sw]=await Promise.all([check(''),check('sw.js')]);
 if(!sw.includes("caches.match('/')")||!sw.includes("chartnova-v1"))
