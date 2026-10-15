@@ -1,5 +1,7 @@
 # Provider Source Matrix — Phase 1 Data Proof
 
+> **HISTORICAL / 2026-10-05 candidate matrix.** This file records development-era Navasan, Bon-bast and Alpha Vantage candidates, **not confirmed live ChartNova data provenance**. For up-to-date official-plan observations, licensing restrictions, vendor links, unknowns and Gheymat Online/TGJU/BrsApi/Gold API see [official-source review 2026-10-15](provider-source-matrix-2026-10-15.md). For recorded Worker/PR divergence see [Stage-1 reconciliation](../operations/chartnova-stage1-production-reconciliation-2026-10-15.md). No provider is approved by this documentary note.
+
 Research date: 2026-10-05
 
 This matrix is an engineering gate, not a provider endorsement. A provider is not promoted to production solely because an API is reachable. Licensing/commercial rights, timestamp quality, update frequency, history, reliability, and reproducibility must all be acceptable.
