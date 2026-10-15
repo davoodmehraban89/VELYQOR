@@ -22,3 +22,5 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Compare staged candidate to current production in mobile Chromium
         run: node scripts/check-chartnova-staged-performance.mjs
+      - name: Simulate ten-second market-feed delay and validate first contentful prices
+        run: node scripts/check-chartnova-slow-feed.mjs
