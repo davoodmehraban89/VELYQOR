@@ -34,6 +34,6 @@ jobs:
       - name: Install isolated Chromium for real-HTML integration test
         run: |
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
       - name: Simulate compact and lazy catalog against actual deployed v26 HTML (no deploy)
         run: node scripts/test-chartnova-live-html-simulator.mjs
