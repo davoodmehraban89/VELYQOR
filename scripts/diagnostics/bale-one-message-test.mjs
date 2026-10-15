@@ -29,7 +29,7 @@ export function safeSummary(result,httpStatus,expectedChat){
  return {status:'Bale_API_ACCEPTED_NOT_READ_CONFIRMED',httpStatus,messageId:msg};
 }
 export async function postMethod(method,body,{token,transport=fetch}){
- if(!tokenOK(token)||!['getUpdates','sendMessage'].includes(method))
+ if(!tokenOK(token)||!['getUpdates','getChat','sendMessage'].includes(method))
    throw Error('Invalid Bale request inputs');
  const response=await transport(HOST+'/bot'+token+'/'+method,{
    method:'POST',
@@ -72,6 +72,12 @@ export async function singleTest({mode='--dry-run',env=process.env,transport=fet
    throw Error('Explicit BALE_TEST_CONSENT required');
  const chatId=env.BALE_CHAT_ID;
  if(!chatOK(chatId))throw Error('BALE_CHAT_ID missing or malformed');
+ // Never send to a group/channel even if supplied ID is a positive integer.
+ const preflight=await postMethod('getChat',{chat_id:chatId},{token,transport});
+ if(preflight.status!==200||preflight.data?.ok!==true||
+    preflight.data?.result?.type!=='private'||
+    String(preflight.data?.result?.id)!==chatId)
+   return {status:'FAILED',reason:'private_chat_preflight_failed_redacted'};
  const text='[ChartNova] پیام آزمایشی کانال بله. این یک آزمون ارتباطی است؛ هشدار قیمت یا توصیه مالی نیست.';
  const r=await postMethod('sendMessage',{chat_id:chatId,text},{token,transport});
  return safeSummary(r.data,r.status,chatId);
