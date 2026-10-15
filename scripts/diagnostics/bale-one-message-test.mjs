@@ -15,7 +15,8 @@ export function tokenOK(value) {
  return typeof value==='string'&&/^[0-9]{4,20}:[A-Za-z0-9_-]{12,180}$/.test(value);
 }
 export function chatOK(value){
- return typeof value==='string'&&/^-?[0-9]{1,17}$/.test(value)&&value!=='0';
+ return typeof value==='string'&&/^[1-9][0-9]{0,15}$/.test(value)&&
+  BigInt(value)<=BigInt(Number.MAX_SAFE_INTEGER);
 }
 export function safeSummary(result,httpStatus,expectedChat){
  if(!result||result.ok!==true||httpStatus<200||httpStatus>=300) {
@@ -59,6 +60,8 @@ export async function singleTest({mode='--dry-run',env=process.env,transport=fet
      return {status:'FAILED',reason:'getUpdates_not_available_or_webhook_active',httpStatus:r.status};
    const matches=(r.data.result||[]).filter(u=>{
      const text=u?.message?.text||'';
+     const chat=u?.message?.chat;
+     if(chat?.type!=='private'||!chatOK(String(chat.id)))return false;
      return text===('/start '+nonce)||text===('CHARTNOVA_TEST_'+nonce);
    }).map(u=>String(u.message.chat.id));
    const unique=[...new Set(matches)];
