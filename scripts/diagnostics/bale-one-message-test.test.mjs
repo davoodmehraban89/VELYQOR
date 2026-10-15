@@ -17,23 +17,53 @@ test('requires token, chat and exact consent before sending',async()=>{
  assert.equal(chatOK('1234567'),true);
  assert.equal(tokenOK('bad/foo?'),false);
 });
-test('one send only, correct endpoint and sanitized accepted response',async()=>{
- let sent=0;
+test('preflight verifies private chat and transmits exactly one outgoing message',async()=>{
+ let checks=0, sent=0;
  const r=await singleTest({
   mode:'--send',env:{BALE_BOT_TOKEN:token,BALE_CHAT_ID:'456789',BALE_TEST_CONSENT:'I_OWN_THIS_CHAT'},
   transport:async(uri,opt)=>{
-   sent++;
    assert.ok(uri.startsWith('https://tapi.bale.ai/bot'));
    assert.equal(opt.method,'POST');
-   assert.ok(!uri.includes('getUpdates'));
    const body=JSON.parse(opt.body);
    assert.equal(body.chat_id,'456789');
+   if(uri.endsWith('/getChat')){
+    checks++;
+    assert.equal(sent,0);
+    return {status:200,json:async()=>({ok:true,result:{id:456789,type:'private'}})};
+   }
+   assert.ok(uri.endsWith('/sendMessage'));
+   sent++;
+   assert.equal(checks,1);
    assert.ok(body.text.includes('آزمایشی'));
    return {status:200,json:async()=>({ok:true,result:{chat:{id:456789},message_id:101}})};
   }
  });
- assert.equal(sent,1);assert.equal(r.status,'Bale_API_ACCEPTED_NOT_READ_CONFIRMED');assert.equal(r.messageId,101);
+ assert.equal(checks,1);assert.equal(sent,1);
+ assert.equal(r.status,'Bale_API_ACCEPTED_NOT_READ_CONFIRMED');
+ assert.equal(r.messageId,101);
  assert.ok(!JSON.stringify(r).includes(token));
+});
+test('wrong, group or unverified recipient fails before any message is sent',async()=>{
+ for(const chat of [
+  {id:456789,type:'group'},
+  {id:456790,type:'private'},
+  {id:456789},
+  null
+ ]){
+  let sent=0;
+  const result=await singleTest({
+   mode:'--send',
+   env:{BALE_BOT_TOKEN:token,BALE_CHAT_ID:'456789',BALE_TEST_CONSENT:'I_OWN_THIS_CHAT'},
+   transport:async(uri)=>{
+    if(uri.endsWith('/getChat'))return {status:200,json:async()=>({ok:true,result:chat})};
+    sent++;
+    throw Error('Unauthorized send');
+   }
+  });
+  assert.equal(result.status,'FAILED');
+  assert.equal(result.reason,'private_chat_preflight_failed_redacted');
+  assert.equal(sent,0);
+ }
 });
 test('redacts full error payload and refuses mismatched chat',()=>{
  assert.deepEqual(safeSummary({ok:false,description:'SECRET TOKEN',error_code:403},403,'13'),
