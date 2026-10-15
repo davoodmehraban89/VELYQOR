@@ -12,6 +12,9 @@ test('requires token, chat and exact consent before sending',async()=>{
  await assert.rejects(()=>singleTest({mode:'--send',env:{BALE_BOT_TOKEN:token}}),/CONSENT/);
  await assert.rejects(()=>singleTest({mode:'--send',env:{BALE_BOT_TOKEN:token,BALE_TEST_CONSENT:'I_OWN_THIS_CHAT'}}),/CHAT_ID/);
  assert.equal(chatOK('0'),false);
+ assert.equal(chatOK('-100123456'),false);
+ assert.equal(chatOK('9999999999999999'),false);
+ assert.equal(chatOK('1234567'),true);
  assert.equal(tokenOK('bad/foo?'),false);
 });
 test('one send only, correct endpoint and sanitized accepted response',async()=>{
@@ -45,11 +48,23 @@ test('discover only matches consent nonce and ignores other chats',async()=>{
    count++;
    assert.ok(uri.endsWith('/getUpdates'));
    return {status:200,json:async()=>({ok:true,result:[
-    {message:{chat:{id:1},text:'/start wrong'}},
-    {message:{chat:{id:2},text:'/start abc123TEST'}},
-    {message:{chat:{id:3},text:'/start something'}}
+    {message:{chat:{id:1,type:'private'},text:'/start wrong'}},
+    {message:{chat:{id:2,type:'private'},text:'/start abc123TEST'}},
+    {message:{chat:{id:3,type:'private'},text:'/start something'}},
+    {message:{chat:{id:-100999,type:'supergroup'},text:'/start abc123TEST'}}
    ]})};
   }
  });
  assert.equal(count,1);assert.deepEqual(r,{status:'CHAT_FOUND',chatId:'2'});
+});
+
+test('refuses discovery message without verifiable private chat metadata',async()=>{
+ const r=await singleTest({mode:'--discover',
+  env:{BALE_BOT_TOKEN:token,BALE_DISCOVERY_NONCE:'abc123TEST'},
+  transport:async()=>({status:200,json:async()=>({ok:true,result:[
+    {message:{chat:{id:2},text:'/start abc123TEST'}},
+    {message:{chat:{id:-123,type:'group'},text:'/start abc123TEST'}}
+  ]})})
+ });
+ assert.equal(r.status,'NOT_VERIFIED');
 });
