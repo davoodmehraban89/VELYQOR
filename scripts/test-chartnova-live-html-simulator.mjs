@@ -4,7 +4,7 @@
  * Does not upload or deploy a Cloudflare Worker and does not modify the
  * live site. Only the test browser is served simulated HTML+summary JSON.
  */
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 import {patchChartNovaV26} from './patch-chartnova-v26-light-catalog.mjs';
 import {marketCatalogSummary} from '../packages/market-domain/src/market-catalog-summary.mjs';
 
@@ -34,9 +34,10 @@ const syntheticV26=
  ',{headers:{"content-type":"text/html; charset=utf-8"}})'+
  '},async scheduled(event,env){}}';
 const patched=patchChartNovaV26(syntheticV26);
+for(const spec of [{browserName:'Chromium',engine:chromium},{browserName:'WebKit',engine:webkit}]){
 const errors=[],summaryCalls=[],marketCalls=[];
-const browser=await chromium.launch({headless:true});
-const stats={model:'staged-v26-html-in-browser',originalBytes:originalSize,summaryBytes:summarySize,
+const browser=await spec.engine.launch({headless:true});
+const stats={browser:spec.browserName,model:'staged-v26-html-in-browser',originalBytes:originalSize,summaryBytes:summarySize,
  savingsPercent:Math.round((1-summarySize/originalSize)*100),catalogCount:projected.markets.length};
 try{
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,
@@ -93,3 +94,4 @@ if(stats.status!==200||!stats.dashboard?.chart||stats.visibleMarkets!==projected
  stats.summaryCalls!==1||stats.historyRequests.length<2||
  stats.historyRequests.some(symbol=>!symbol)||errors.length)
  throw Error('Browser integration did not meet acceptance criteria');
+}
