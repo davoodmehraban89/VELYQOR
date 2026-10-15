@@ -73,7 +73,10 @@
         21,
         22
       ],
-      "openCountAtReview": 7
+      "openCountAtReview": 7,
+      "openCountAtReviewScope": "BEFORE_DOCS_PR_31",
+      "stage1DocsReviewPr": 31,
+      "openIncludingStage1DocsPrAtCreation": 8
     },
     "localWorktree": {
       "currentState": "UNVERIFIED",
