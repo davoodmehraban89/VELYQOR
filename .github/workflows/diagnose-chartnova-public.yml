@@ -1,0 +1,26 @@
+name: ChartNova Public Blank Screen Diagnostic
+on:
+  pull_request:
+    paths:
+      - 'scripts/diagnose-chartnova-public.mjs'
+      - '.github/workflows/diagnose-chartnova-public.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare isolated diagnostic browser
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Inspect deployed site in mobile and desktop Chromium
+        run: node scripts/diagnose-chartnova-public.mjs
+      - name: Inspect deployed site in Safari-like mobile WebKit
+        run: node scripts/diagnose-chartnova-webkit.mjs
