@@ -2,7 +2,7 @@
 
 Date: 2026-10-15. **This is a local operator procedure and mock-tested script only**, not operational proof or a live alert adapter.
 
-Official Bale Bot API: https://docs.bale.ai/ ; create a bot by sending instructions to **@botfather in Bale**; API requests use HTTPS endpoint https://tapi.bale.ai/bot{TOKEN}/METHOD, including sendMessage and getUpdates. API success returns a JSON ok:true, result.message_id; this proves **API acceptance, not human delivery/read**. Bale official 2026 free message quota and guaranteed reachability: **تأییدنشده**.
+Official Bale Bot API: https://docs.bale.ai/ ; create a bot by sending instructions to **@botfather in Bale**; API requests use HTTPS endpoint https://tapi.bale.ai/bot{TOKEN}/METHOD, including sendMessage and getUpdates. API success returns a JSON ok:true, result.message_id; this proves **API acceptance, not human delivery/read**. Bale official 2026 free message quota and guaranteed reachability: **تأییدنشده**. The official documentation explicitly states normal bot send rate limits depend on chat interaction. **Business/bulk-message API requires a charged Bale business account and per-message balance**; this is outside the owner's zero-cost constraint and MUST NOT be used. Official https://docs.bale.ai/ (section «افزایش سقف ارسال و ارسال پیام انبوه»). An initial one-user test does not prove reliable future unattended notifications.
 
 ### Inputs — keep them on YOUR trusted device, never paste into ChatGPT/GitHub/issues
 
