@@ -29,7 +29,7 @@ function v26(js=jsx){
   +'const noChange='+JSON.stringify('x'.repeat(41000))+';'
   +'if(url.pathname==="/api/markets"&&request.method==="GET"){return Response.json({ok:true})}'
   +'return new Response('+JSON.stringify(html)+',{headers:{"content-type":"text/html; charset=utf-8"}})'
-  +'},async scheduled(event,env){}}';
+  +'},async scheduled(event,env){}}'\n  +'\nasync function stored(env,key){return env.MARKET_CACHE.get(key,"json")}';
 }
 const snapshot=()=>({
  ok:true,source:'gheymat.online',fetchedAt:'2026-10-15T10:59:00Z',
