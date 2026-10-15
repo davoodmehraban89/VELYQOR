@@ -7,7 +7,7 @@ Official Bale Bot API: https://docs.bale.ai/ ; create a bot by sending instructi
 ### Inputs — keep them on YOUR trusted device, never paste into ChatGPT/GitHub/issues
 
 1. **BALE_BOT_TOKEN**: private new/test bot token issued by @botfather. Never send over chat or put in URL shown in history. Use a dedicated test bot if you already have an active production webhook.
-2. **BALE_CHAT_ID**: numeric ID of YOUR private opted-in Bale conversation with that bot. The account must open bot and send /start first; an arbitrary username is not enough.
+2. **BALE_CHAT_ID**: positive, safely representable numeric ID of YOUR private opted-in Bale conversation with that bot. The account must open bot and send /start first; an arbitrary username or negative/group ID is rejected. The program independently checks `getChat` response `id` and `type: private` immediately before sending.
 3. **BALE_TEST_CONSENT = I_OWN_THIS_CHAT**: explicit local send unlock, no automatic retry, maximum ONE message.
 4. Optional **BALE_DISCOVERY_NONCE**: random local 8–64 ASCII identifier that you send in a private message to the bot (e.g. /start followed by the nonce) so the read-only --discover mode outputs ONLY the intended chat ID. The script ignores other chats. If getUpdates conflicts with an existing webhook, DO NOT delete/replace that webhook without owner approval; use a new test bot.
 
@@ -23,13 +23,15 @@ In a trusted shell with no command-history capture of secret values:
     node scripts/diagnostics/bale-one-message-test.mjs --discover
   This makes a getUpdates call; it prints only the matching numeric chat ID, not other users' messages. If multiple/missing matches it refuses.
 - Set local BALE_CHAT_ID to that private numeric ID, and local BALE_TEST_CONSENT to literal I_OWN_THIS_CHAT.
-- Run exactly one real send manually:
+- Run a read-only `getChat` private-recipient preflight followed by **at most one** real send manually:
     node scripts/diagnostics/bale-one-message-test.mjs --send
 - On HTTP 200, verified ok:true and the expected target chat/message ID, result reads **Bale_API_ACCEPTED_NOT_READ_CONFIRMED**. Check the Bale app yourself: actual delivery visible? Record local success/failure timestamp and masked message ID. Only then mark the channel **tested to this one account**, not a general delivery SLA.
 - Immediately clear BALE_BOT_TOKEN, BALE_CHAT_ID and consent variables from the local shell. If token was exposed, rotate in BotFather.
 
 ### Safety and test coverage
 
-Code: scripts/diagnostics/bale-one-message-test.mjs; test: same path ending .test.mjs. Dry run is default. Unit tests mock fetch: safe dry run, missing-token/consent gates, exactly one POST, redact API error, nonce-based chat discovery. CI **never calls --send or --discover** and has no bot credentials. Script logs no full response or token; no retries are attempted (avoids duplicate sends after network uncertainty).
+Code: scripts/diagnostics/bale-one-message-test.mjs; test: same path ending .test.mjs. Dry run is default. Unit tests mock fetch: safe dry run, missing-token/consent gates, private recipient `getChat` preflight, group/unsafe ID rejection, exactly one outgoing `sendMessage` POST, redact API errors, nonce-based private-chat discovery. CI **never calls --send or --discover** and has no bot credentials. Script logs no full response or token; no retries are attempted (avoids duplicate sends after network uncertainty).
+
+Official confirmation: Bale `Chat.type` is one of `private`, `group` or `channel`, and IDs can be 52-bit signed integers; see [Bale bot docs: Chat](https://docs.bale.ai/). The `getChat` preflight must succeed with an exact ID match and `private`. This verifies only chat type, not that the owner personally controls the account; opt-in message + owner confirmation are still necessary.
 
 **NOT COMPLETE:** No live token was used, no real message sent or delivered in Stage 2, recipient feedback and any Bale bot quota are **تأییدنشده**. Requires owner-run local smoke and written result, no production Worker integration.
