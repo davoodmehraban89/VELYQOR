@@ -16,3 +16,9 @@ jobs:
           node-version: '22'
       - name: Unit test fail-closed Worker bootstrap patch
         run: node --test scripts/optimize-chartnova-worker.test.mjs
+      - name: Install diagnostic browser
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Compare staged candidate to current production in mobile Chromium
+        run: node scripts/check-chartnova-staged-performance.mjs
