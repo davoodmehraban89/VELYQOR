@@ -44,7 +44,9 @@ export function parseAlphaVantageGoldSpot({ payload, receivedAt }) {
     throw new TypeError('payload must be an object');
   }
 
-  const unit = String(payload.unit ?? '').trim().toLowerCase();
+  // GOLD_SILVER_SPOT currently returns nominal, timestamp, and price without a unit field.
+  // The requested endpoint and GOLD symbol define USD per troy ounce; reject explicit conflicting units.
+  const unit = String(payload.unit ?? 'usd per troy ounce').trim().toLowerCase();
   if (!ACCEPTED_UNITS.has(unit)) {
     throw new RangeError(`unsupported Alpha Vantage gold unit: ${payload.unit ?? '<missing>'}`);
   }
