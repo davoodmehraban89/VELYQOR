@@ -43,6 +43,26 @@ Read-only Preview GET of /sw.js returned version 27 Service Worker code: cache k
 Actual root cause of prior v27 device failure: **تأییدنشده**. Record of rollback decision: [documented incident](https://github.com/davoodmehraban89/VELYQOR/blob/ops/chartnova-emergency-rollback-2026-10-15/PROJECT_STATE.md). The owner reported the public app stopped opening; rollback to v26 was a **precaution**, not a proven identification of a v27 JavaScript defect.
 
 
+## Controlled two-origin, browser-profile and offline-cache differential — 2026-10-16
+
+**Test script:** [scripts/diagnose-chartnova-origin-session-split.mjs](../../scripts/diagnose-chartnova-origin-session-split.mjs). **Successful CI evidence:** [run 38911072193, v27-preview job](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38911072193), stdout \`CHARTNOVA_ORIGIN_BROWSER_DIAGNOSTIC\`.
+
+- The script fetched public HTML and SW from \`https://chartnova.ir/\` and \`https://app.chartnova.ir/\` using **read-only GET**, then rendered them in **disposable** Chromium and WebKit mobile-emulation browser contexts. Price REST calls were intercepted into explicit synthetic 503 responses. No production database, KV, user browser cache or Worker mutation occurred.
+- Both hostnames returned the **same full public HTML bytes**, SHA-256 \`f29310eefc37585cd75a809725f778d4e3e92be626a818392b6fc4c8e32614a7\`. Both returned the **same full Service Worker bytes**, SHA-256 \`008057765a2bc7b9e94946136023db073f1113e573d1a8cb8b0236fa32911687\`. These are actual public assets, not a proof that private cache entries are identical.
+- **Fresh Chromium root:** HTTP 200, shell visible, 0 JS exceptions. **Fresh Chromium app:** 200, visible, 0 JS exceptions. **Fresh WebKit root:** 200, visible, 0 JS exceptions. **Fresh WebKit app:** 200, visible, 0 JS exceptions. **Fresh WebKit is NOT the user's long-lived iPhone Safari state, and a new Playwright context is NOT identical to Safari Private semantics.**
+- Separate **Chromium disposable shared browser context** registered the actual current Service Worker independently under the two origins, and verified both origins possessed a cached navigation document. The test then deliberately overwrote **only root-origin's disposable cache** with synthetic empty HTML, disconnected the simulated network, and reloaded both origins: root went blank; app remained visible with healthy cache. On restoring network, root recovered. This demonstrates an **origin-specific stale/bad cache + offline fallback mechanism is technically possible** without any difference in current public source files.
+- The old v27 + synthetic-source-outage scenarios on the same CI run still returned \`NOT_REPRODUCED_IN_TESTED_SCENARIOS\`. Bale test unit suite 7/7 pass; no channel message transmitted.
+- **DO NOT infer the actual cause.** The owner's recorded comparison changes two factors simultaneously: root in normal browser and app in Private browser. No **root in Private** or **app in normal** device outcome is yet available. Without them, "host-related" versus "session storage/SW-related" remains **تأییدنشده**. The controlled corrupt-cache simulation proves only that it *could* happen, not that it *did* happen.
+
+**Next two indispensable device tests (same phone, same network/VPN, no cache clear):**
+1. \`chartnova.ir\` in **Private** tab → OPEN / BLANK / BROWSER_NETWORK_ERROR / STUCK_LOADING.
+2. \`app.chartnova.ir\` in **normal non-Private** tab → OPEN / BLANK / BROWSER_NETWORK_ERROR / STUCK_LOADING.
+
+If both Private open and both normal fail, focus on persistent browser/site data, content blockers and SW cache (still unproven). If root fails in both and app opens in both, focus on origin-specific network/WAF/TLS/DNS. If outcomes vary across reloads, capture timestamp + error type and repeat across Wi-Fi/cellular without exposing IP or location. For a blank shell record a sanitized screenshot; for browser-level network errors capture the exact text. **Avoid clearing evidence** before these two results.
+
+**Changes under this checkpoint:** only unmerged Draft PR #32 documentation, diagnostics script and its GitHub CI workflow. No deploy, Worker upload, merge, Cloudflare DNS/WAF changes, KV/Neon writes, real notification or secret access.
+
+
 ## New owner-device observation — 2026-10-15 evening (unresolved)
 
 The owner tested the **same phone and network** and reported:
