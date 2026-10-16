@@ -1,5 +1,16 @@
 # VELYQOR Project State
 
+## Stage 2 ongoing diagnostic checkpoint — 2026-10-16 (Draft PR #32 only)
+
+- **Repeated owner-device outage:** root \`chartnova.ir\` failed in normal browser, while \`app.chartnova.ir\` opened in a Private tab on the same phone/network. Two variables changed simultaneously; root-in-Private and app-in-normal outcomes **NOT YET PROVIDED**, so the actual device cause remains **تأییدنشده**.
+- **Cloudflare read-only reverified:** \`velyqor-preview\` version **v26** (\`85177f9d-09c0-4763-b28c-2c6ba5ae5be5\`) 100% active, deployment \`78155d6f-11fc-4d1b-ab4f-7c0a97474406\`. No deployment or DNS change.
+- **Confirmed independent current-origin parity:** public root/app HTML byte-identical SHA-256 \`f29310eefc37585cd75a809725f778d4e3e92be626a818392b6fc4c8e32614a7\`; SW byte-identical SHA-256 \`008057765a2bc7b9e94946136023db073f1113e573d1a8cb8b0236fa32911687\`. Both are accessible externally. This is not an on-device or ISP-specific test.
+- **Controlled GitHub Actions evidence:** [run 38911072193](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38911072193), \`CHARTNOVA_ORIGIN_BROWSER_DIAGNOSTIC\`: fresh Chromium/WebKit contexts both loaded both hosts (4/4 visible, 0 JS exceptions). A temporary Chromium context with deliberately poisoned **root-only** cached HTML became blank when offline while app remained visible from its independently healthy cache, then root recovered online. This is an artificial reproduction of a **possible** host-specific cache mechanism, **NOT proof** the owner had a bad cache. Synthetic REST 503 only; no live data writes.
+- **Next mandatory evidence:** run \`https://chartnova.ir/\` in **Private** and \`https://app.chartnova.ir/\` in **ordinary non-Private** on same phone/network, recording OPEN / BLANK / BROWSER_NETWORK_ERROR / STUCK_LOADING. No clearing browser data beforehand. See [incident test matrix](docs/operations/chartnova-stage2-incident-2026-10-15.md).
+- **Scope:** only diagnostic script, its isolated GitHub CI and documentation in Draft [PR #32](https://github.com/davoodmehraban89/VELYQOR/pull/32). No PR merge, production Worker change, KV/Neon mutation, paid resource, secret access, real trading, mail or Bale message. Further feature development is PAUSED.
+
+---
+
 ## Stage 2 risk-only checkpoint — 2026-10-15 (Draft PR #32; NOT MERGED/DEPLOYED)
 
 - **PR #31 documentation-only merged**, main squash SHA **4649149b1f920aecbe4c26597983d9bb35d90427**. Its pre-merge scope check verified 10/10 changed files were Markdown/JSON, no runtime/workflow/migration modification, 4/4 CI success.
