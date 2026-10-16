@@ -1,5 +1,33 @@
 # VELYQOR Project State
 
+## Stage 2 ongoing diagnostic checkpoint — 2026-10-16 (Draft PR #32 only)
+
+- **Repeated owner-device outage:** root \`chartnova.ir\` failed in normal browser, while \`app.chartnova.ir\` opened in a Private tab on the same phone/network. Two variables changed simultaneously; root-in-Private and app-in-normal outcomes **NOT YET PROVIDED**, so the actual device cause remains **تأییدنشده**.
+- **Cloudflare read-only reverified:** \`velyqor-preview\` version **v26** (\`85177f9d-09c0-4763-b28c-2c6ba5ae5be5\`) 100% active, deployment \`78155d6f-11fc-4d1b-ab4f-7c0a97474406\`. No deployment or DNS change.
+- **Confirmed independent current-origin parity:** public root/app HTML byte-identical SHA-256 \`f29310eefc37585cd75a809725f778d4e3e92be626a818392b6fc4c8e32614a7\`; SW byte-identical SHA-256 \`008057765a2bc7b9e94946136023db073f1113e573d1a8cb8b0236fa32911687\`. Both are accessible externally. This is not an on-device or ISP-specific test.
+- **Controlled GitHub Actions evidence:** [run 38911072193](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38911072193), \`CHARTNOVA_ORIGIN_BROWSER_DIAGNOSTIC\`: fresh Chromium/WebKit contexts both loaded both hosts (4/4 visible, 0 JS exceptions). A temporary Chromium context with deliberately poisoned **root-only** cached HTML became blank when offline while app remained visible from its independently healthy cache, then root recovered online. This is an artificial reproduction of a **possible** host-specific cache mechanism, **NOT proof** the owner had a bad cache. Synthetic REST 503 only; no live data writes.
+- **Next mandatory evidence:** run \`https://chartnova.ir/\` in **Private** and \`https://app.chartnova.ir/\` in **ordinary non-Private** on same phone/network, recording OPEN / BLANK / BROWSER_NETWORK_ERROR / STUCK_LOADING. No clearing browser data beforehand. See [incident test matrix](docs/operations/chartnova-stage2-incident-2026-10-15.md).
+- **Scope:** only diagnostic script, its isolated GitHub CI and documentation in Draft [PR #32](https://github.com/davoodmehraban89/VELYQOR/pull/32). No PR merge, production Worker change, KV/Neon mutation, paid resource, secret access, real trading, mail or Bale message. Further feature development is PAUSED.
+
+---
+
+## Stage 2 risk-only checkpoint — 2026-10-15 (Draft PR #32; NOT MERGED/DEPLOYED)
+
+- **PR #31 documentation-only merged**, main squash SHA **4649149b1f920aecbe4c26597983d9bb35d90427**. Its pre-merge scope check verified 10/10 changed files were Markdown/JSON, no runtime/workflow/migration modification, 4/4 CI success.
+- **Feature work PAUSED by owner.** Stage 2 only covers incident analysis, observability proposal, unsent source-rights emails, a local opt-in test of ONE Bale message and interviews conducted by owner. PR [#32](https://github.com/davoodmehraban89/VELYQOR/pull/32) contains diagnostics/documentation; **Draft, no merge and no production deployment**.
+- **Cloudflare read-only verified now:** Worker velyqor-preview v26 version ID **85177f9d-09c0-4763-b28c-2c6ba5ae5be5** at **100%**. Existing v27 version ID **2cbeb4e2-4a3e-414f-b3ad-035e2378650b** accessible through immutable versioned Preview URL but not deployed to public traffic. Actual secret values not read.
+- **Reproduction:** [run 38765420366](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38765420366) five Chromium/WebKit scenarios, simulated REST 503 and 7s delay: **NO BLANK UI**, no JavaScript exceptions. Browser console emitted expected synthetic HTTP 503 errors. An additional older run failed due GitHub runner network ETIMEDOUT, **not demonstrated application failure**.
+- **Actual v27 Service Worker:** [run 38766991373](https://github.com/davoodmehraban89/VELYQOR/actions/runs/38766991373) demonstrated **healthy offline cache displays UI; deliberately poisoned disposable cache + offline navigation displays blank page; restoring network recovers**. This proves only a *possible mechanism*, not that owner's historical cache was corrupted. **Root cause remains تأییدنشده** pending device logs and HAR metadata; see [incident report](docs/operations/chartnova-stage2-incident-2026-10-15.md).
+- **Monitoring proposal only:** [Cloudflare Workers Logs + no-PII health route proposal](docs/operations/chartnova-stage2-observability-proposal-2026-10-15.md). No Sentry account or instrumentation, no health routes, no live alerts deployed.
+- **Provider permission requests UNSENT:** [Gheymat Online and conditional TGJU drafts](docs/compliance/price-redistribution-permission-email-drafts-2026-10-15.md). Public redistribution rights and exact quote side **تأییدنشده**.
+- **Bale channel remains NOT VERIFIED:** [owner-run dry-run/discovery/one-message local procedure](docs/operations/bale-manual-channel-check-2026-10-15.md) and scripts/diagnostics/bale-one-message-test.mjs, five mock transport tests passed. **No actual token was provided; no real message sent or observed**, no channel activation.
+- **Trader interviews NOT conducted:** [10-question guide](docs/research/trader-alert-interview-2026-10-15.md) for owner. No findings or price willingness-to-pay validated.
+- **Protection:** db/migrations/0005_navasan_private_daily_ohlc.sql remains blocked; no real orders, no secrets, no DB writes, no Worker change, no new production SLA.
+- **Next:** independent owner/device artifacts and separately approved live Bale owner-only test, then reevaluate risk. Do not start vertical slice or merge PR #32 without explicit approval.
+
+---
+
+
 ## Latest Stage-1 checkpoint — 2026-10-15 (DOC-ONLY / not yet merged)
 
 **Review base:** [main 381ba284d47f284f034afacc7d6cc41fc31af8f9](https://github.com/davoodmehraban89/VELYQOR/commit/381ba284d47f284f034afacc7d6cc41fc31af8f9). This heading **supersedes all time-specific "current production" claims below** without falsifying the historical events.

@@ -1,0 +1,40 @@
+name: ChartNova Stage2 isolated incident diagnostics
+on:
+  pull_request:
+    paths:
+      - 'scripts/diagnose-chartnova-v27-preview.mjs'
+      - 'scripts/diagnose-chartnova-version-assets.mjs'
+      - 'scripts/diagnose-chartnova-origin-session-split.mjs'
+      - 'scripts/diagnose-chartnova-v27-sw-cache.mjs'
+      - 'scripts/diagnostics/bale-one-message-test.mjs'
+      - 'scripts/diagnostics/bale-one-message-test.test.mjs'
+      - '.github/workflows/chartnova-stage2-diagnostics.yml'
+      - 'docs/operations/chartnova-stage2-incident-2026-10-15.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  v27-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit test Bale diagnostic without transmitting message
+        run: node --test scripts/diagnostics/bale-one-message-test.test.mjs
+      - name: Confirm default Bale dry-run never sends
+        run: node scripts/diagnostics/bale-one-message-test.mjs --dry-run
+      - name: Compare immutable v26/v27 public assets and Service Worker
+        run: node scripts/diagnose-chartnova-version-assets.mjs
+      - name: Install isolated browser engines
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          npx playwright install --with-deps chromium webkit
+      - name: Load existing v27 version URL in isolated browsers with synthetic failing API responses
+        run: node scripts/diagnose-chartnova-v27-preview.mjs
+      - name: Reproduce per-origin cache asymmetry in isolated root/app browser profiles
+        run: node scripts/diagnose-chartnova-origin-session-split.mjs
+      - name: Verify original version 27 Service Worker fallback in disposable cache only
+        run: node scripts/diagnose-chartnova-v27-sw-cache.mjs
