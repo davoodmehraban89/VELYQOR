@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {parseGoldApiXau,GOLD_API_XAU_URL} from '../src/adapters/gold-api.mjs';
+test('Gold API endpoint and observed response normalize to XAU_USD',()=>{assert.equal(GOLD_API_XAU_URL,'https://api.gold-api.com/price/XAU');const r=parseGoldApiXau({payload:{symbol:'XAU',currency:'USD',price:4195.6,updatedAt:'2026-10-10T12:28:32Z'},receivedAt:new Date('2026-10-10T12:28:35Z')});assert.equal(r.price,4195.6);assert.equal(r.canonicalSymbol,'XAU_USD');assert.equal(r.providerCode,'gold_api')});
+test('rejects mismatched currency and future provider timestamps',()=>{assert.throws(()=>parseGoldApiXau({payload:{symbol:'XAU',currency:'EUR',price:1,updatedAt:'2026-10-10T12:28:32Z'},receivedAt:new Date('2026-10-10T12:28:35Z')}));assert.throws(()=>parseGoldApiXau({payload:{symbol:'XAU',currency:'USD',price:1,updatedAt:'2026-10-10T12:28:40Z'},receivedAt:new Date('2026-10-10T12:28:35Z')}))});
