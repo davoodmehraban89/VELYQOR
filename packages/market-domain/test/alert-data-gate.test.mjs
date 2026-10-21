@@ -36,14 +36,14 @@ test('unconfirmed price spike remains quarantined if wildly different',()=>{
 });
 test('verified secondary source can confirm large first spike with same units/side',()=>{
  let s=run(null,obs()).state;
- const t=run(s,obs(1,1080),{secondary:{...obs(1,1080),provider:'S2'}});
+ const t=run(s,obs(1,1080),{secondary:{...obs(1,1080),provider:'S2',permission:{derivedAlerts:true}}});
  assert.equal(t.status,'GOOD')
 });
 test('secondary source dispute suspends alerts without falling back to wrong side',()=>{
  let s=run(null,obs()).state;
- const r=run(s,obs(1,1001),{secondary:{...obs(1,1100),provider:'S2'}});
+ const r=run(s,obs(1,1001),{secondary:{...obs(1,1100),provider:'S2',permission:{derivedAlerts:true}}});
  assert.equal(r.status,'SOURCE_DIVERGENCE');assert.equal(r.alertsSuspended,true);
- assert.equal(run(s,obs(1,1001),{secondary:{...obs(1,1001,'BUY'),provider:'S2'}}).status,'SOURCE_DIVERGENCE')
+ assert.equal(run(s,obs(1,1001),{secondary:{...obs(1,1001,'BUY'),provider:'S2',permission:{derivedAlerts:true}}}).status,'SOURCE_DIVERGENCE')
 });
 test('source, symbol, unit and quote side may not shift silently',()=>{
  const s=run(null,obs()).state;
@@ -67,4 +67,10 @@ test('rejects bad config and invalid price',()=>{
  assert.throws(()=>checkConfig({maxAgeMs:-1}));
  assert.throws(()=>checkConfig({recoverySamples:0}));
  assert.equal(run(null,{...obs(),price:Infinity}).status,'INVALID')
+});
+
+test('unlicensed secondary source cannot confirm spike or silently normalize',()=>{
+ const state=run(null,obs()).state;
+ const r=run(state,obs(1,1100),{secondary:{...obs(1,1100),provider:'S2'}});
+ assert.equal(r.status,'SOURCE_DIVERGENCE');assert.equal(r.alertsSuspended,true)
 });
