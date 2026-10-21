@@ -2,7 +2,7 @@
  * Source-provenance and data-integrity acceptance gate for informational alerts.
  * Pure, deterministic and safe to replay. Never returns a trading instruction.
  */
-const REASONS = new Set(['STALE','SPIKE_PENDING','SOURCE_DIVERGENCE','SOURCE_UNAVAILABLE','INVALID','OUT_OF_ORDER','DUPLICATE','RECOVERING','CLOSED_MARKET']);
+const REASONS = new Set(['STALE','SPIKE_PENDING','SOURCE_DIVERGENCE','SOURCE_TIME_SKEW','SECONDARY_UNVERIFIED','RIGHTS_UNVERIFIED','SOURCE_UNAVAILABLE','INVALID','OUT_OF_ORDER','DUPLICATE','RECOVERING','CLOSED_MARKET']);
 const positive = n => Number.isFinite(n) && n > 0;
 const timestamp = v => {
  const n=Date.parse(v);
@@ -15,11 +15,11 @@ function fresh(o,now,config) {
 }
 export const DEFAULT_DATA_GATE = Object.freeze({
  maxAgeMs:10*60_000, clockToleranceMs:30_000, maxMovePct:3,
- maxDivergencePct:2, confirmTolerancePct:0.5, recoverySamples:2
+ maxDivergencePct:2, confirmTolerancePct:0.5, maxSourceSkewMs:60_000, recoverySamples:2
 });
 export function checkConfig(config) {
  const c={...DEFAULT_DATA_GATE,...config};
- for(const key of ['maxAgeMs','clockToleranceMs','maxMovePct','maxDivergencePct','confirmTolerancePct'])
+ for(const key of ['maxAgeMs','clockToleranceMs','maxMovePct','maxDivergencePct','confirmTolerancePct','maxSourceSkewMs'])
   if(!Number.isFinite(c[key])||c[key]<0)throw new RangeError(key+' invalid');
  if(!Number.isInteger(c.recoverySamples)||c.recoverySamples<1||c.recoverySamples>10)
   throw new RangeError('recoverySamples invalid');
@@ -44,24 +44,33 @@ export function evaluateQuoteGate(previous,observation,options={}) {
  const {symbol,provider,unit,side,price}=observation;
  if(!symbol||!provider||!unit||!['BUY','SELL','REFERENCE'].includes(side)||!positive(price))
   return result('INVALID',{...state,quarantined:null,recoveryCount:0});
+ if(observation.permission?.publicDisplay!==true||observation.permission?.derivedAlerts!==true)
+  return result('RIGHTS_UNVERIFIED',{...state,quarantined:null,recoveryCount:0});
  let sampleMs;
  try{sampleMs=timestamp(observation.timestamp)}catch{return result('INVALID',{...state,recoveryCount:0})}
  if(sampleMs>now+c.clockToleranceMs||now-sampleMs>c.maxAgeMs)
   return result('STALE',{...state,quarantined:null,recoveryCount:0});
  const lastMs=state.lastSampleAt===null?null:timestamp(state.lastSampleAt);
  if(lastMs!==null&&sampleMs<=lastMs)
-  return result(sampleMs===lastMs?'DUPLICATE':'OUT_OF_ORDER',state);
+  return result(sampleMs===lastMs?'DUPLICATE':'OUT_OF_ORDER',
+    {...state,recoveryCount:0,quarantined:null});
  const next={...state,lastSampleAt:new Date(sampleMs).toISOString()};
  const last=state.lastAccepted;
  if(last&&(last.symbol!==symbol||last.provider!==provider||last.unit!==unit||last.side!==side))
   return result('INVALID',{...next,recoveryCount:0,quarantined:null});
  const secondary=options.secondary??null;
  if(secondary!==null){
-  if(secondary.permission?.derivedAlerts!==true||
-    secondary.symbol!==symbol||secondary.unit!==unit||secondary.side!==side||
-    secondary.provider===provider||!positive(secondary.price)||
-    !fresh(secondary,now,c))
-   return result('SOURCE_DIVERGENCE',{...next,recoveryCount:0,quarantined:null});
+  if(secondary.permission?.publicDisplay!==true||secondary.permission?.derivedAlerts!==true)
+   return result('SECONDARY_UNVERIFIED',{...next,recoveryCount:0,quarantined:null});
+  let secondaryMs;
+  try{secondaryMs=timestamp(secondary.timestamp)}
+  catch{return result('SECONDARY_UNVERIFIED',{...next,recoveryCount:0,quarantined:null})}
+  if(secondary.symbol!==symbol||secondary.unit!==unit||secondary.side!==side||
+    secondary.provider===provider||!positive(secondary.price))
+   return result('SECONDARY_UNVERIFIED',{...next,recoveryCount:0,quarantined:null});
+  if(secondaryMs>now+c.clockToleranceMs||now-secondaryMs>c.maxAgeMs||
+     Math.abs(sampleMs-secondaryMs)>c.maxSourceSkewMs)
+   return result('SOURCE_TIME_SKEW',{...next,recoveryCount:0,quarantined:null});
   const delta=Math.abs(price/secondary.price-1)*100;
   if(delta>c.maxDivergencePct)
    return result('SOURCE_DIVERGENCE',{...next,recoveryCount:0,quarantined:null});
