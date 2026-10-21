@@ -32,6 +32,6 @@ export async function baleOneMessage({token,chatId,text,transport}) {
  try{result=await request('sendMessage',{chat_id:chatId,text})}
  catch{return {status:'UNKNOWN',code:'DELIVERY_OUTCOME_UNKNOWN_NO_AUTO_RETRY'}};
  if(!Number.isSafeInteger(result?.message_id)||String(result?.chat?.id)!==chatId)
-  return {status:'FAILED',code:'PROVIDER_ACCEPTANCE_UNVERIFIED'};
+  return {status:'UNKNOWN',code:'DELIVERY_OUTCOME_UNKNOWN_NO_AUTO_RETRY'};
  return {status:'SENT',code:'PROVIDER_ACCEPTED_NOT_READ',messageId:String(result.message_id)};
 }
