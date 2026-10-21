@@ -44,7 +44,11 @@ export function initialAlertState(id) {
     selectedLeg:null,cooldownUntil:null};
 }
 const checkRule=r=>{
- if(!r||typeof r.id!=='string'||!r.id||!Array.isArray(r.legs)||!r.legs.length||r.legs.length>2)
+ if(!r||typeof r.id!=='string'||!r.id||
+    typeof r.symbol!=='string'||!r.symbol||
+    typeof r.unit!=='string'||!r.unit||
+    typeof r.provider!=='string'||!r.provider||
+    !Array.isArray(r.legs)||!r.legs.length||r.legs.length>2)
   throw new TypeError('alert id + 1 or 2 legs');
  for(const leg of r.legs)checkLeg(leg);
  if(r.legs.length===2&&r.legs[0].type===r.legs[1].type)
@@ -70,7 +74,8 @@ export function stepAlert(rule,previous,quote,gate) {
   return {state:{...state,consecutive:0,firstCandidateAt:null},events:[],reason:'QUALITY_HOLD'};
  const t=when(quote.timestamp),last=state.lastTimestamp===null?null:when(state.lastTimestamp);
  if(last!==null&&t<=last)return {state,events:[],reason:t===last?'DUPLICATE':'OUT_OF_ORDER'};
- if(!positive(quote.price)||quote.side!==rule.legs[0].side)
+ if(!positive(quote.price)||quote.side!==rule.legs[0].side||
+    quote.symbol!==rule.symbol||quote.unit!==rule.unit||quote.provider!==rule.provider)
   return {state,events:[],reason:'QUOTE_SIDE_OR_PRICE_INVALID'};
  let high=state.highWater,low=state.lowWater,stop=state.stop;
  // Trailing state must advance on each valid observation before evaluating.
