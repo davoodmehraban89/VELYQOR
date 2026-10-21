@@ -29,10 +29,14 @@ test('bounded retry after failure; no extra claim after exhausted',()=>{
  assert.equal(n.reason,'ATTEMPTS_EXHAUSTED');
  assert.equal(claimDelivery(n,{now:at(9)}).claimed,false)
 });
-test('recover crashed worker lease only after lease expired',()=>{
+test('expired in-flight lease is unknown, not automatically retried',()=>{
  let n=claimDelivery(fresh(),{now:at(0),leaseMs:30000}).record;
  assert.equal(claimDelivery(n,{now:at(0)}).claimed,false);
- assert.equal(claimDelivery(n,{now:at(1)}).claimed,true)
+ const expired=claimDelivery(n,{now:at(1)});
+ assert.equal(expired.claimed,false);
+ assert.equal(expired.record.status,'UNKNOWN');
+ assert.equal(expired.record.reason,'LEASE_EXPIRED_DELIVERY_UNCERTAIN');
+ assert.equal(claimDelivery(expired.record,{now:at(9)}).claimed,false);
 });
 test('reject malformed channels and negative retries',()=>{
  assert.throws(()=>notificationRecord({id:'x',eventId:'e',recipientChannel:'TELEGRAM',createdAt:at(0)}));
@@ -54,4 +58,16 @@ test('unknown delivery cannot assert success or go backwards in time',()=>{
  assert.throws(()=>recordDeliveryOutcome(n,{at:at(3),success:true,unknown:true}));
  assert.throws(()=>recordDeliveryOutcome(n,{at:at(1),success:false}));
  assert.equal(recordDeliveryOutcome(n,{at:at(3),success:false}).status,'FAILED');
+});
+
+test('crash immediately after message attempt cannot cause a second send after lease expires',()=>{
+ const r=notificationRecord({id:'outbox-crash',eventId:'event-crash',
+  recipientChannel:'BALE',createdAt:at(0)});
+ const first=claimDelivery(r,{now:at(0),leaseMs:1000});
+ assert.equal(first.claimed,true);
+ const second=claimDelivery(first.record,{now:at(1)});
+ assert.equal(second.claimed,false);
+ assert.equal(second.record.status,'UNKNOWN');
+ assert.equal(second.record.nextRetryAt,null);
+ assert.match(notificationUiStatus(second.record),/نامشخص/);
 });
