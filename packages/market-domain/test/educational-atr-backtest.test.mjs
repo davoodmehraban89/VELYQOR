@@ -4,7 +4,7 @@ const permission={historicalStorage:true,derivedAnalysis:true};
 const base=Array.from({length:7},(_,i)=>({
  timestamp:new Date(Date.parse('2026-10-20T00:00:00Z')+i*3600000).toISOString(),
  open:100+i,high:102+i,low:98+i,close:101+i,
- side:'SELL',unit:'IRT_PER_USD',origin:'PROVIDER_OHLC',quality:'GOOD'
+ side:'SELL',unit:'IRT_PER_USD',provider:'S1',symbol:'USD_IRT_FREE',origin:'PROVIDER_OHLC',quality:'GOOD'
 }));
 test('licensed, ordered source OHLC calculates true ranges and Wilder ATR',()=>{
  const bars=validateBacktestBars(base,{permission});
@@ -42,4 +42,15 @@ test('rejects invalid configuration and false OHLC high/low',()=>{
  assert.throws(()=>backtestTrailing({bars:base,permission,fixedPct:101}),/configuration/);
  assert.throws(()=>backtestTrailing({bars:base,permission,entryIndex:0}),/entryIndex/);
  assert.throws(()=>validateBacktestBars(base.map((x,i)=>i===1?{...x,high:40}:x),{permission}),/inconsistent/)
+});
+
+test('different provider, market symbol or quote convention must not mix into one backtest',()=>{
+ for(const changed of [{provider:'S2'},{symbol:'GOLD18_IRT'},{side:'BUY'},{unit:'IRR_PER_USD'}]){
+  const bars=base.map((v,i)=>i===3?{...v,...changed}:v);
+  assert.throws(()=>backtestTrailing({bars,permission}),/Changing OHLC/);
+ }
+});
+test('empty provider or missing symbol rejected rather than producing reference returns',()=>{
+ assert.throws(()=>backtestTrailing({bars:base.map((v,i)=>i===1?{...v,provider:''}:v),permission}),/source identity/);
+ assert.throws(()=>backtestTrailing({bars:base.map((v,i)=>i===1?{...v,symbol:null}:v),permission}),/source identity/);
 });
