@@ -57,7 +57,8 @@ export function evaluateQuoteGate(previous,observation,options={}) {
   return result('INVALID',{...next,recoveryCount:0,quarantined:null});
  const secondary=options.secondary??null;
  if(secondary!==null){
-  if(secondary.symbol!==symbol||secondary.unit!==unit||secondary.side!==side||
+  if(secondary.permission?.derivedAlerts!==true||
+    secondary.symbol!==symbol||secondary.unit!==unit||secondary.side!==side||
     secondary.provider===provider||!positive(secondary.price)||
     !fresh(secondary,now,c))
    return result('SOURCE_DIVERGENCE',{...next,recoveryCount:0,quarantined:null});
