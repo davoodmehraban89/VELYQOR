@@ -1,5 +1,14 @@
 # VELYQOR Project State
 
+## 2026-10-21 — Second-pass risk hardening (Draft PR #33, NO RELEASE)
+
+- Reviewed and tightened existing isolated market-domain code: **explicit rights on primary and secondary price sources, tight source timestamp skew, suspension after duplicated/out-of-order prices, fail-closed backtest OHLC source identity**, and **no automatic repeat notification after ambiguous HTTP response or expired in-flight Worker lease**.
+- Added unit and pure-domain integration tests for these cases. A single test fixture error (licensed permission unintentionally inherited by unlicensed-secondary case) was discovered by CI and corrected; retain it in [technical incident/audit record](docs/operations/chartnova-seven-track-risk-2026-10-21.md).
+- **Not production operational:** no verified vendor redisplay license, source bid/ask contract, actual live alert or full persisted outbox, Bale recipient or financial OHLC dataset. Three independently staffed/AI reviews **not done**; three GitHub Action jobs **are automated tests only**.
+- **Protected:** PR #33 remains Draft and unmerged. No changes to live Cloudflare Worker, DNS, KV, Neon, local worktrees, migration 0005 or secrets. CI results are meaningful for exact GitHub head SHA only.
+
+---
+
 ## 2026-10-21 — Draft risk-only A–G research implementation (not a release)
 
 - Owner requested autonomous implementation of "seven items"; interpreted against the **explicit seven Stage-0 categories A–G**, not as an instruction to merge seven pre-existing open PRs.
