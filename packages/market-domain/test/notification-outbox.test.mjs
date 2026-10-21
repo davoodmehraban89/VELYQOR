@@ -39,3 +39,19 @@ test('reject malformed channels and negative retries',()=>{
  assert.throws(()=>claimDelivery(fresh(),{now:at(0),leaseMs:-1}));
  assert.throws(()=>acknowledgeDelivery(fresh(),{at:at(1)}));
 });
+
+test('transport timeout after sending has unknown result and never retries',()=>{
+ let n=claimDelivery(fresh(),{now:at(0)}).record;
+ n=recordDeliveryOutcome(n,{at:at(1),success:false,unknown:true});
+ assert.equal(n.status,'UNKNOWN');
+ assert.equal(n.reason,'OUTCOME_UNKNOWN_RECONCILE_MANUALLY');
+ assert.equal(n.nextRetryAt,null);
+ assert.equal(claimDelivery(n,{now:at(20)}).claimed,false);
+ assert.match(notificationUiStatus(n),/نامشخص/);
+});
+test('unknown delivery cannot assert success or go backwards in time',()=>{
+ const n=claimDelivery(fresh(),{now:at(2)}).record;
+ assert.throws(()=>recordDeliveryOutcome(n,{at:at(3),success:true,unknown:true}));
+ assert.throws(()=>recordDeliveryOutcome(n,{at:at(1),success:false}));
+ assert.equal(recordDeliveryOutcome(n,{at:at(3),success:false}).status,'FAILED');
+});
