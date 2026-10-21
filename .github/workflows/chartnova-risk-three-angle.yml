@@ -1,0 +1,36 @@
+name: ChartNova 3-angle isolated domain review
+on:
+  pull_request:
+    paths:
+      - 'packages/market-domain/src/**'
+      - 'packages/market-domain/test/**'
+      - 'scripts/review-chartnova-risk-lenses.test.mjs'
+      - '.github/workflows/chartnova-risk-three-angle.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  functional-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node --test packages/market-domain/test/*.test.mjs
+  security-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node --test --test-name-pattern='security lens' scripts/review-chartnova-risk-lenses.test.mjs
+  edge-adversarial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node --test --test-name-pattern='adversarial lens' scripts/review-chartnova-risk-lenses.test.mjs

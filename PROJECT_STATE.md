@@ -1,5 +1,26 @@
 # VELYQOR Project State
 
+## 2026-10-21 — Second-pass risk hardening (Draft PR #33, NO RELEASE)
+
+- Reviewed and tightened existing isolated market-domain code: **explicit rights on primary and secondary price sources, tight source timestamp skew, suspension after duplicated/out-of-order prices, fail-closed backtest OHLC source identity**, and **no automatic repeat notification after ambiguous HTTP response or expired in-flight Worker lease**.
+- Added unit and pure-domain integration tests for these cases. A single test fixture error (licensed permission unintentionally inherited by unlicensed-secondary case) was discovered by CI and corrected; retain it in [technical incident/audit record](docs/operations/chartnova-seven-track-risk-2026-10-21.md).
+- **Not production operational:** no verified vendor redisplay license, source bid/ask contract, actual live alert or full persisted outbox, Bale recipient or financial OHLC dataset. Three independently staffed/AI reviews **not done**; three GitHub Action jobs **are automated tests only**.
+- **Protected:** PR #33 remains Draft and unmerged. No changes to live Cloudflare Worker, DNS, KV, Neon, local worktrees, migration 0005 or secrets. CI results are meaningful for exact GitHub head SHA only.
+
+---
+
+## 2026-10-21 — Draft risk-only A–G research implementation (not a release)
+
+- Owner requested autonomous implementation of "seven items"; interpreted against the **explicit seven Stage-0 categories A–G**, not as an instruction to merge seven pre-existing open PRs.
+- [Draft PR #33](https://github.com/davoodmehraban89/VELYQOR/pull/33) contains **isolated, testable market-domain modules** for entitled-source crosscheck/failover, stale/spike/divergence quality gate, pure informational rule engine (ATR/fixed trailing, SL/TP and OCO), bounded notification state and Bale one-send transport, free-tier quota calculations, and educational paper-only ATR backtest. It also includes three **independent CI jobs** (functional, static security and seeded adversarial). These are automated checks **not three independent AI reviewer agents**.
+- **No production effect**: no main merge, Worker deploy, KV/Neon mutation, live recipient, real order, data provider call, paid plan or migration execution. All source usage is gated on written entitlements/quote-side/units.
+- **Still blocked for completion**: exact deployed v26 source provenance, affected-device Safari failure traces, licensed two-source quotes/OHLC, transactional outbox, real consented Bale receipt, confirmed provider quota/SLA, user interview evidence and required **three genuinely independent reviewers**. Notion agent discovery returned \`entitlement_required\` (Business plan), so agents were **not launched**; no approvals may be claimed.
+- **Roll-forward / rollback**: keep PR #33 Draft until independent review and rights/operational gates pass. Revert or close its branch without touching users if any checks fail. See [risk review record](docs/operations/chartnova-seven-track-risk-2026-10-21.md).
+- Active site remains outside the release scope; last known production Worker v26 as documented in prior incident investigations, **not re-verified by this PR**. PR #32 remains Draft.
+
+---
+
+
 ## Latest Stage-1 checkpoint — 2026-10-15 (DOC-ONLY / not yet merged)
 
 **Review base:** [main 381ba284d47f284f034afacc7d6cc41fc31af8f9](https://github.com/davoodmehraban89/VELYQOR/commit/381ba284d47f284f034afacc7d6cc41fc31af8f9). This heading **supersedes all time-specific "current production" claims below** without falsifying the historical events.
