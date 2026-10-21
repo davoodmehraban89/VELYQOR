@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {initialAlertState,stepAlert,markNotified,closeAlert} from '../src/informational-alert-engine.mjs';
 const at=i=>new Date(Date.parse('2026-10-20T12:00:00Z')+i*60000).toISOString();
-const q=(i,p,extras={})=>({timestamp:at(i),price:p,provider:'S1',symbol:'USD_IRT_FREE',side:'SELL',...extras});
+const q=(i,p,extras={})=>({timestamp:at(i),price:p,provider:'S1',symbol:'USD_IRT_FREE',side:'SELL',unit:'IRT_PER_USD',...extras});
 const g=x=>({status:'GOOD',alertsSuspended:false,accepted:x});
 const leg=(type,extras={})=>({type,side:'SELL',threshold:100,position:'LONG',entry:100,...extras});
 const rule=(id,legs,extra={})=>({id,legs,...extra});
