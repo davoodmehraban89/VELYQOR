@@ -72,7 +72,7 @@ test('rejects bad config and invalid price',()=>{
 
 test('unlicensed secondary source cannot confirm spike or silently normalize',()=>{
  const state=run(null,obs()).state;
- const r=run(state,obs(1,1100),{secondary:{...obs(1,1100),provider:'S2'}});
+ const r=run(state,obs(1,1100),{secondary:{...obs(1,1100),provider:'S2',permission:null}});
  assert.equal(r.status,'SECONDARY_UNVERIFIED');assert.equal(r.alertsSuspended,true)
 });
 
