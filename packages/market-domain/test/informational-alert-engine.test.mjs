@@ -4,7 +4,7 @@ const at=i=>new Date(Date.parse('2026-10-20T12:00:00Z')+i*60000).toISOString();
 const q=(i,p,extras={})=>({timestamp:at(i),price:p,provider:'S1',symbol:'USD_IRT_FREE',side:'SELL',unit:'IRT_PER_USD',...extras});
 const g=x=>({status:'GOOD',alertsSuspended:false,accepted:x});
 const leg=(type,extras={})=>({type,side:'SELL',threshold:100,position:'LONG',entry:100,...extras});
-const rule=(id,legs,extra={})=>({id,legs,...extra});
+const rule=(id,legs,extra={})=>({id,symbol:'USD_IRT_FREE',provider:'S1',unit:'IRT_PER_USD',legs,...extra});
 test('above/below thresholds generate one event, no repeated triggers',()=>{
  for(const [kind,price] of [['ABOVE',102],['BELOW',98]]){
   const r=rule('one',[leg(kind)]),tick=q(0,price);
@@ -89,4 +89,18 @@ test('nonmatching quote side and malformed alerts produce no event',()=>{
  const r=rule('x',[leg('ABOVE')]);
  const x=q(0,110,{side:'BUY'});assert.equal(stepAlert(r,null,x,g(x)).reason,'QUOTE_SIDE_OR_PRICE_INVALID');
  assert.throws(()=>stepAlert({id:'x',legs:[]},null,x,g(x)));
+});
+
+test('rejects cross-instrument, provider and unit quote replay',()=>{
+ const r=rule('bound',[leg('ABOVE')]);
+ for(const change of [{symbol:'GOLD18_IRT'},{provider:'S2'},{unit:'IRR_PER_USD'}]){
+  const qx=q(0,111,change),v=stepAlert(r,null,qx,g(qx));
+  assert.equal(v.reason,'QUOTE_SIDE_OR_PRICE_INVALID');assert.equal(v.events.length,0)
+ }
+});
+test('rejects gate spoofing by quote mismatch',()=>{
+ const r=rule('guard',[leg('ABOVE')]);
+ const good=q(0,110),forged=q(0,999);
+ const v=stepAlert(r,null,forged,g(good));
+ assert.equal(v.reason,'QUALITY_HOLD');assert.equal(v.events.length,0)
 });
