@@ -9,10 +9,11 @@ const paths=[
  'packages/market-domain/src/informational-alert-engine.mjs',
  'packages/market-domain/src/licensed-provider-selector.mjs',
  'packages/market-domain/src/notification-outbox.mjs',
+ 'packages/market-domain/src/bale-once-adapter.mjs',
  'packages/market-domain/src/free-quota-budget.mjs',
  'packages/market-domain/src/educational-atr-backtest.mjs'
 ];
-test('security lens: six new domain modules have zero orders, HTTP, secrets and persistent writes',async()=>{
+test('security lens: seven new domain modules have zero orders, HTTP, secrets and persistent writes',async()=>{
  for(const path of paths){
   const src=await readFile(new URL('../'+path,import.meta.url),'utf8');
   assert.doesNotMatch(src,/\bfetch\s*\(|\bWebSocket\s*\(|\bplaceOrder\s*\(|\bexecuteTrade\s*\(|\bprocess\.env\b|\bKV\.put\b/);
