@@ -25,6 +25,27 @@ This iteration treats **A–G from the user-supplied Stage-0 scope** as the seve
 - No secret read or committed; no new real-money orders or broker network clients; no user-facing claim of real-time or assured alerts. Scope deliberately keeps real production data, untracked migrations and worktrees untouched.
 - The draft PR and its test code can be abandoned/closed without touching production. There is **no runtime rollback**, because no production changes were made.
 
+## 2026-10-21 second-pass risk-hardening audit (same unmerged PR)
+
+Reviewed the actual domain implementation and expanded failure/edge coverage. All changes are isolated to PR #33; do not mistake green CI for a licensed production integration.
+
+| Concrete review finding | Reproduction condition | Fix in PR #33 | Evidence |
+|---|---|---|---|
+| **HIGH: primary quote could pass quality gate without explicit data rights** | Source object lacked `permission.publicDisplay` or `permission.derivedAlerts` | Gate now returns `RIGHTS_UNVERIFIED` and suspends all price alerts | `packages/market-domain/test/alert-data-gate.test.mjs` |
+| **HIGH: misaligned/unlicensed secondary could confirm a price spike** | Second quote was older than first or had no licensed public usage/alert rights | Require independent entitlements, matched symbol/side/unit and configurable provider timestamp skew (default 60s); fail closed without publishing a price alert | Same gate tests |
+| **HIGH: duplicate or out-of-order observation did not persist suspension/recovery reset** | Fresh duplicate arrived after `GOOD`; returned state retained old `suspended:false` | Suspend until configurable number of distinct valid samples have re-established quality | Same gate tests |
+| **HIGH: an ambiguous Bale send error could be reported as safely failed** | POST timed out, HTTP 500, malformed JSON or wrong chat in provider's response after attempting send | Return `UNKNOWN` without automated retry; no successful-delivery claim | `packages/market-domain/test/bale-once-adapter.test.mjs` |
+| **HIGH: expired outbox lease could produce duplicate notifications** | Worker crashed after sending but before saving provider receipt; a later Worker claimed expired lease | Expired LEASED state now becomes `UNKNOWN` and is not automatically retried | `packages/market-domain/test/notification-outbox.test.mjs` |
+| **MEDIUM: historical study could silently splice unrelated provider OHLC** | Same price side/unit but changed provider or symbol partway through a series | Reject any mixing of provider, symbol, side or unit; require explicitly licensed OHLC and non-advisory reference results | `packages/market-domain/test/educational-atr-backtest.test.mjs` |
+| **MEDIUM: individual module tests did not prove cross-component source-gate-to-send safety** | Valid source, spike, threshold rule, mocked Bale acceptance or uncertain send in one flow | Added full pure-domain integration tests with no live calls | `packages/market-domain/test/integrated-alert-safety.test.mjs` |
+
+**QA status:** Before the final rerun, one negative test failed because its shared observation fixture accidentally **inherited licensed permission** from the default test quote, while the test intended an unlicensed secondary. The fixture was corrected to set `permission:null`, then re-run; do not attribute that test error to runtime behavior. This is part of the verifiable test history, not hidden.
+
+**Remaining release blocker, by design:** a pure in-memory state machine does not provide a transactional durable outbox, a verified rights registry, user authentication or exactly-once message delivery. The safest response to an unknown provider result is to **halt automatic retries and require human reconciliation**, not to promise exactly-once delivery. No real user notification or API secret was used. All modules are **experimental and unmerged**.
+
+**Review independence:** GitHub Actions runs functional, static/security and seeded-adversarial jobs independently on isolated runners; these are **NOT independent human or AI code-review agents**. The three-agent approval requirement has not been met because the available Notion agent interface requires a Business plan. No cost was incurred to bypass it. Do not call PR #33 production-ready.
+
+
 ## Specific adversarial/control risks left open
 
 1. Injecting arbitrarily large jump from a source lacking explicit quote-side/license evidence must not cross the quality gate.
