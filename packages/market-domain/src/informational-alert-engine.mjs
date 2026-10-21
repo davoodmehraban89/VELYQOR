@@ -63,7 +63,10 @@ export function stepAlert(rule,previous,quote,gate) {
  const state=previous??initialAlertState(rule.id);
  if(state.id!==rule.id||!PHASE.has(state.phase))throw new RangeError('corrupt state');
  if(state.phase!=='ARMED')return {state,events:[],reason:'ALREADY_TRIGGERED_OR_CLOSED'};
- if(gate?.status!=='GOOD'||gate.alertsSuspended||gate.accepted===null||!quote)
+ if(gate?.status!=='GOOD'||gate.alertsSuspended||!gate.accepted||!quote||
+    gate.accepted.symbol!==quote.symbol||gate.accepted.provider!==quote.provider||
+    gate.accepted.side!==quote.side||gate.accepted.unit!==quote.unit||
+    gate.accepted.price!==quote.price||gate.accepted.timestamp!==quote.timestamp)
   return {state:{...state,consecutive:0,firstCandidateAt:null},events:[],reason:'QUALITY_HOLD'};
  const t=when(quote.timestamp),last=state.lastTimestamp===null?null:when(state.lastTimestamp);
  if(last!==null&&t<=last)return {state,events:[],reason:t===last?'DUPLICATE':'OUT_OF_ORDER'};
