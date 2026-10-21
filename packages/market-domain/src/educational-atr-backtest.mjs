@@ -16,10 +16,13 @@ export function validateBacktestBars(bars,{permission}={}){
   for(const k of ['open','high','low','close'])if(!pos(b[k]))throw new RangeError(k);
   if(b.high<Math.max(b.open,b.close)||b.low>Math.min(b.open,b.close)||b.low>b.high)
    throw new RangeError('OHLC inconsistent');
-  if(typeof b.unit!=='string'||!b.unit||!['BUY','SELL','REFERENCE'].includes(b.side))
-   throw new RangeError('OHLC source side/unit');
-  if(i&& (bars[i-1].unit!==b.unit||bars[i-1].side!==b.side))
-   throw new RangeError('Changing OHLC units/side');
+  if(typeof b.provider!=='string'||!b.provider.trim()||
+     typeof b.symbol!=='string'||!b.symbol.trim()||
+     typeof b.unit!=='string'||!b.unit||!['BUY','SELL','REFERENCE'].includes(b.side))
+   throw new RangeError('OHLC source identity, side or unit');
+  if(i&& (bars[i-1].unit!==b.unit||bars[i-1].side!==b.side||
+      bars[i-1].provider!==b.provider||bars[i-1].symbol!==b.symbol))
+   throw new RangeError('Changing OHLC provider/symbol/units/side');
   previous=Date.parse(b.timestamp);
   return {...b};
  });
@@ -82,7 +85,7 @@ export function backtestTrailing({
    advisory:false,executionPriceGuaranteed:false};
  }
  return {label:'اطلاعات آموزشی و غیرتوصیه‌ای',paperOnly:true,
-  sourceDataKind:'LICENSED_PROVIDER_OHLC',unit:data[0].unit,side:data[0].side,
+  sourceDataKind:'LICENSED_PROVIDER_OHLC',provider:data[0].provider,symbol:data[0].symbol,unit:data[0].unit,side:data[0].side,
   position,barCount:data.length,atrPeriod,atrMultiplier,fixedPct,
   fixedPercent:sim('PCT'),atr:sim('ATR'),
   caveat:'Hourly/intrabar ambiguity, commissions, spread, market impact and source outage are not fully simulated. This is not a trading recommendation.'};
