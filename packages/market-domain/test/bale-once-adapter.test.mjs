@@ -44,5 +44,27 @@ test('API 500 or invalid response does not assert provider delivery',async()=>{
   if(url.endsWith('/getChat'))return {status:200,json:async()=>({ok:true,result:{type:'private',id:23456}})};
   return {status:500,json:async()=>({ok:false})};
  }});
- assert.equal(r.status,'FAILED')
+ assert.equal(r.status,'UNKNOWN');
+ assert.equal(r.code,'DELIVERY_OUTCOME_UNKNOWN_NO_AUTO_RETRY')
+});
+
+test('malformed success JSON after send is unknown rather than safe to retry',async()=>{
+ let sends=0;
+ const r=await baleOneMessage({...args,transport:async url=>{
+  if(url.endsWith('/getChat'))return {status:200,json:async()=>({ok:true,result:{type:'private',id:23456}})};
+  sends++;
+  return {status:200,json:async()=>{throw new Error('partial transport output')}};
+ }});
+ assert.equal(sends,1);
+ assert.equal(r.status,'UNKNOWN');
+ assert.equal(r.code,'DELIVERY_OUTCOME_UNKNOWN_NO_AUTO_RETRY');
+});
+test('wrong response chat ID after send cannot be assumed a safe failure',async()=>{
+ let sends=0;
+ const r=await baleOneMessage({...args,transport:async url=>{
+  if(url.endsWith('/getChat'))return {status:200,json:async()=>({ok:true,result:{type:'private',id:23456}})};
+  sends++;
+  return {status:200,json:async()=>({ok:true,result:{chat:{id:99999},message_id:5}})};
+ }});
+ assert.equal(sends,1);assert.equal(r.status,'UNKNOWN');
 });
