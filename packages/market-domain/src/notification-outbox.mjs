@@ -19,8 +19,17 @@ export function claimDelivery(record,{now,leaseMs=30000}){
  if(record.status==='SENT'||record.status==='ACKNOWLEDGED'||record.status==='UNKNOWN'||record.attempts>=record.maxAttempts)
   return {record,claimed:false};
  const at=Date.parse(now);
- if(record.status==='LEASED'&&Date.parse(record.leaseUntil)>at)
-  return {record,claimed:false};
+ if(record.status==='LEASED') {
+  if(!Number.isFinite(Date.parse(record.leaseUntil))||
+     !Number.isFinite(Date.parse(record.leasedAt)))
+   throw new RangeError('invalid existing lease');
+  if(Date.parse(record.leaseUntil)>at)
+   return {record,claimed:false};
+  // A prior worker could have sent the message and crashed before persisting
+  // the provider response. Never steal an expired lease and send twice.
+  return {record:{...record,status:'UNKNOWN',leaseUntil:null,nextRetryAt:null,
+    reason:'LEASE_EXPIRED_DELIVERY_UNCERTAIN'},claimed:false};
+ }
  if(record.nextRetryAt&&Date.parse(record.nextRetryAt)>at)
   return {record,claimed:false};
  const updated={...record,status:'LEASED',attempts:record.attempts+1,
