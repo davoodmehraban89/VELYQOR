@@ -148,9 +148,11 @@ BEGIN
   IF dup = n THEN RAISE EXCEPTION 'user-scoped idempotency violated'; END IF;
 
   -- SQL permissions do not grant anonymous read or execution.
-  IF has_table_privilege('public','notification_outbox','SELECT')
-    AND EXISTS(SELECT 1 FROM pg_roles WHERE rolname='public') THEN
-    RAISE EXCEPTION 'unexpected public table privilege';
+  IF EXISTS (
+    SELECT 1 FROM information_schema.role_table_grants
+    WHERE grantee='PUBLIC' AND table_name='notification_outbox'
+  ) THEN
+    RAISE EXCEPTION 'unexpected PUBLIC table privilege';
   END IF;
 END $$;
 
