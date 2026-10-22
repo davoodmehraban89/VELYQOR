@@ -17,7 +17,10 @@ const rule='cross-session-alert';
 const time='2026-10-22T12:00:00.000Z';
 const state=JSON.stringify({alert:{
  id:rule,phase:'TRIGGERED',eventId:event,triggeredAt:time,lastTimestamp:time
-},gate:{suspended:false}});
+},gate:{suspended:false,lastSampleAt:time,lastAccepted:{
+ timestamp:time,provider:'S1',symbol:'USD_IRT_FREE',
+ side:'SELL',unit:'IRT_PER_USD',price:1100
+}}});
 const stmt=q=>execFileSync('psql',['-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-c',q],
  {env,encoding:'utf8',timeout:14000,stdio:['ignore','pipe','pipe']}).trim();
 
