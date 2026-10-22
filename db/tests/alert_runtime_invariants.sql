@@ -114,10 +114,42 @@ BEGIN
   SELECT count(*) INTO n FROM public.notification_outbox WHERE event_key=event_id;
   IF n <> 1 THEN RAISE EXCEPTION 'duplicate outbox message created'; END IF;
 
-  -- A revoked recipient never qualifies, even when the rule is valid.
+  -- Consent may be revoked AFTER an informational alert was queued.
+  -- The future sender must never receive the previously queued message.
+  UPDATE public.alert_notification_consents
+    SET revoked_at = t + interval '2 minutes'
+  WHERE user_id=v_user AND recipient_ref=v_recipient AND channel='BALE';
+
+  SELECT count(*) INTO n
+    FROM public.alert_notification_claim_consented(t+interval '3 minutes',30);
+  IF n <> 0 THEN RAISE EXCEPTION 'revoked recipient was returned to sender'; END IF;
+  SELECT status INTO current_status FROM public.notification_outbox
+    WHERE user_id=v_user AND event_key=event_id;
+  IF current_status <> 'UNKNOWN' THEN
+    RAISE EXCEPTION 'revoked queued message not terminally suppressed';
+  END IF;
+  SELECT count(*) INTO n
+    FROM public.alert_notification_claim_consented(t+interval '4 minutes',30);
+  IF n <> 0 THEN RAISE EXCEPTION 'revoked notification was re-claimed'; END IF;
+
+  -- Active opt-in remains retrievable only through the consent-aware claim.
   INSERT INTO public.alert_notification_consents
-    (user_id,recipient_ref,channel,consented_at,revoked_at)
-  VALUES(v_other,v_recipient,'BALE',t-interval '10 minutes',t-interval '1 minute');
+    (user_id,recipient_ref,channel,consented_at)
+  VALUES(v_other,v_recipient,'BALE',t-interval '10 minutes');
+  PERFORM public.notification_outbox_enqueue(v_other,'consented-alert',
+    'BALE',v_recipient,3);
+  SELECT * INTO result
+    FROM public.alert_notification_claim_consented(t+interval '5 minutes',30);
+  IF result.event_key <> 'consented-alert' OR result.claim_token IS NULL THEN
+    RAISE EXCEPTION 'consented claimant did not receive authorized pending event';
+  END IF;
+  PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
+    'UNKNOWN',NULL,t+interval '5 minutes 5 seconds');
+
+  -- A revoked recipient never qualifies, even when the rule is valid.
+  UPDATE public.alert_notification_consents
+    SET revoked_at = t-interval '1 minute'
+  WHERE user_id=v_other AND recipient_ref=v_recipient AND channel='BALE';
 
   BEGIN
     PERFORM * FROM public.alert_rule_commit(v_other,'threshold1',0,
@@ -159,7 +191,8 @@ BEGIN
     CROSS JOIN LATERAL pg_catalog.aclexplode(
       COALESCE(p.proacl,pg_catalog.acldefault('f',p.proowner))
     ) AS acl
-    WHERE ns.nspname='public' AND p.proname='alert_rule_commit'
+    WHERE ns.nspname='public' AND p.proname IN
+      ('alert_rule_commit','alert_notification_claim_consented')
       AND acl.grantee=0 AND acl.privilege_type='EXECUTE'
   ) THEN
     RAISE EXCEPTION 'unsafe PUBLIC execute grant';
