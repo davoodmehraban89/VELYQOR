@@ -12,6 +12,7 @@ DECLARE
   result RECORD;
   event_id TEXT := 'threshold1:2026-10-22T12:01:00.000Z:0';
   n INTEGER;
+  current_status TEXT;
 BEGIN
   INSERT INTO public.app_users(id) VALUES (v_user),(v_other);
 
