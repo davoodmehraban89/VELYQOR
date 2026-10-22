@@ -216,6 +216,7 @@ AS $alert_claim$
 DECLARE
   v_claim RECORD;
   v_authorized BOOLEAN;
+  v_scan INTEGER;
 BEGIN
   IF p_now IS NULL OR p_lease_seconds IS NULL
     OR p_lease_seconds NOT BETWEEN 1 AND 300 THEN
@@ -223,6 +224,10 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- Skip a bounded revoked-recipient backlog within the same claim,
+  -- otherwise a revoked queue head could starve valid users.
+  FOR v_scan IN 1..16 LOOP
+  v_authorized := false;
   SELECT * INTO v_claim
     FROM public.notification_outbox_claim(p_now, p_lease_seconds);
   IF NOT FOUND THEN RETURN; END IF;
@@ -256,7 +261,7 @@ BEGIN
     WHERE o.id = v_claim.outbox_id
       AND o.status = 'LEASED'
       AND o.lease_token = v_claim.claim_token;
-    RETURN;
+    CONTINUE;
   END IF;
 
   outbox_id := v_claim.outbox_id;
@@ -266,6 +271,9 @@ BEGIN
   claim_token := v_claim.claim_token;
   attempt_number := v_claim.attempt_number;
   RETURN NEXT;
+  RETURN;
+  END LOOP;
+  RETURN;
 END;
 $alert_claim$;
 
