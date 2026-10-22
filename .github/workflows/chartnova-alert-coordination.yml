@@ -8,6 +8,8 @@ on:
       - 'packages/market-domain/test/alert-postgres-coordinator.test.mjs'
       - 'scripts/check-alert-runtime-concurrency.mjs'
       - 'scripts/test-alert-coordinator-with-pr33.test.mjs'
+      - 'packages/market-domain/src/leased-bale-dispatch.mjs'
+      - 'scripts/test-leased-bale-pr33.test.mjs'
       - '.github/workflows/chartnova-alert-coordination.yml'
       - 'docs/operations/chartnova-alert-runtime-staging-2026-10-22.md'
   workflow_dispatch:
@@ -53,10 +55,11 @@ jobs:
           mkdir -p .tmp-pr33-pinned
           git show 52ebe040d661d67d447d20afe5f49769ec7a095b:packages/market-domain/src/alert-data-gate.mjs > .tmp-pr33-pinned/alert-data-gate.mjs
           git show 52ebe040d661d67d447d20afe5f49769ec7a095b:packages/market-domain/src/informational-alert-engine.mjs > .tmp-pr33-pinned/informational-alert-engine.mjs
+          git show 52ebe040d661d67d447d20afe5f49769ec7a095b:packages/market-domain/src/bale-once-adapter.mjs > .tmp-pr33-pinned/bale-once-adapter.mjs
           test -s .tmp-pr33-pinned/alert-data-gate.mjs
           test -s .tmp-pr33-pinned/informational-alert-engine.mjs
       - name: Unit and exact pinned PR33-to-outbox domain integration
-        run: node --test packages/market-domain/test/alert-postgres-coordinator.test.mjs scripts/test-alert-coordinator-with-pr33.test.mjs
+        run: node --test packages/market-domain/test/alert-postgres-coordinator.test.mjs scripts/test-alert-coordinator-with-pr33.test.mjs scripts/test-leased-bale-pr33.test.mjs
       - name: Apply schema on ephemeral CI PostgreSQL only; 0005 excluded by policy
         run: |
           for file in db/migrations/*.sql; do
