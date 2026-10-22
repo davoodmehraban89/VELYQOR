@@ -8,8 +8,8 @@
  * NOT PRODUCTION-AUTHORIZED: sender role and recipient ownership unverified.
  */
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const beginSql='SELECT public.alert_notification_begin_egress($1::uuid,$2::uuid,$3::timestamptz) AS permitted';
-const egressSql='SELECT public.alert_notification_egress_allowed($1::uuid,$2::uuid,$3::timestamptz) AS permitted';
+const beginSql='SELECT public.alert_notification_begin_egress($1::uuid,$2::uuid,$3::uuid,$4::text,$5::timestamptz) AS permitted';
+const egressSql='SELECT public.alert_notification_egress_allowed($1::uuid,$2::uuid,$3::uuid,$4::text,$5::timestamptz) AS permitted';
 const finishSql='SELECT public.notification_outbox_finish($1::uuid,$2::uuid,$3::text,$4::text,$5::timestamptz,60) AS outcome';
 async function permitted(db,sql,params){
  const result=await db.query(sql,params);
@@ -26,17 +26,24 @@ async function finish(db,{outboxId,claimToken,decision,messageId,at}){
  return r.rows[0].outcome;
 }
 export async function dispatchLeasedBale({
- db,baleOneMessage,outboxId,claimToken,token,chatId,text,at
+ db,baleOneMessage,outboxId,claimToken,recipientRef,resolveRecipient,token,text,at
 }={}){
  if(typeof db?.query!=='function'||typeof baleOneMessage!=='function'||
-    !uuid.test(outboxId)||!uuid.test(claimToken)||
+    !uuid.test(outboxId)||!uuid.test(claimToken)||!uuid.test(recipientRef)||
+    typeof resolveRecipient!=='function'||
     typeof at!=='string'||!Number.isFinite(Date.parse(at)))
   throw new TypeError('invalid server dispatch prerequisites');
  if(typeof token!=='string'||token.length<12||
-    typeof chatId!=='string'||!/^[1-9][0-9]{0,15}$/.test(chatId)||
     typeof text!=='string'||text.length<1||text.length>1000)
   throw new TypeError('invalid private dispatch data');
- const params=[outboxId,claimToken,at];
+ // The destination must be resolved from a trusted server-side opaque
+ // recipient registry, NEVER taken from untrusted event/HTTP input.
+ const resolved=await resolveRecipient({recipientRef,channel:'BALE'});
+ if(resolved?.verified!==true||resolved?.recipientRef!==recipientRef||
+   typeof resolved.chatId!=='string'||
+   !/^[1-9][0-9]{0,15}$/.test(resolved.chatId))
+  return {status:'BLOCKED',reason:'RECIPIENT_MAPPING_UNVERIFIED',sent:false};
+ const params=[outboxId,claimToken,recipientRef,'BALE',at];
  // Linearization point: this SQL row UPDATE makes a second caller unable
  // to obtain another send permit. No network call occurs before success.
  if(!await permitted(db,beginSql,params))
@@ -49,7 +56,7 @@ export async function dispatchLeasedBale({
     persistedOutcome:state,sent:false};
  }
  let outcome;
- try{outcome=await baleOneMessage({token,chatId,text})}
+ try{outcome=await baleOneMessage({token,chatId:resolved.chatId,text})}
  catch{outcome={status:'UNKNOWN'}}
  // Any ambiguous transport error is terminal UNKNOWN, not an auto retry.
  const accepted=outcome?.status==='SENT'&&
