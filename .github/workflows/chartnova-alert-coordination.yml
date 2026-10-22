@@ -1,0 +1,74 @@
+name: ChartNova staged alert-state coordinator
+on:
+  pull_request:
+    paths:
+      - 'db/migrations/0006_alert_runtime_atomic.sql'
+      - 'db/tests/alert_runtime_invariants.sql'
+      - 'packages/market-domain/src/alert-postgres-coordinator.mjs'
+      - 'packages/market-domain/test/alert-postgres-coordinator.test.mjs'
+      - 'scripts/check-alert-runtime-concurrency.mjs'
+      - 'scripts/test-alert-coordinator-with-pr33.test.mjs'
+      - '.github/workflows/chartnova-alert-coordination.yml'
+      - 'docs/operations/chartnova-alert-runtime-staging-2026-10-22.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrated-postgres-and-domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: velyqor_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d velyqor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: velyqor_test
+      VELYQOR_TEST_DATABASE: velyqor_test
+      CHARTNOVA_PINNED_PR33_MODULE_DIR: ${{ github.workspace }}/.tmp-pr33-pinned
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read exact unmerged PR #33 pure-domain module revision without changing repository
+        run: |
+          git fetch --no-tags --depth=1 origin 52ebe040d661d67d447d20afe5f49769ec7a095b
+          test "$(git rev-parse FETCH_HEAD)" = "52ebe040d661d67d447d20afe5f49769ec7a095b"
+          mkdir -p .tmp-pr33-pinned
+          git show 52ebe040d661d67d447d20afe5f49769ec7a095b:packages/market-domain/src/alert-data-gate.mjs > .tmp-pr33-pinned/alert-data-gate.mjs
+          git show 52ebe040d661d67d447d20afe5f49769ec7a095b:packages/market-domain/src/informational-alert-engine.mjs > .tmp-pr33-pinned/informational-alert-engine.mjs
+          test -s .tmp-pr33-pinned/alert-data-gate.mjs
+          test -s .tmp-pr33-pinned/informational-alert-engine.mjs
+      - name: Unit and exact pinned PR33-to-outbox domain integration
+        run: node --test packages/market-domain/test/alert-postgres-coordinator.test.mjs scripts/test-alert-coordinator-with-pr33.test.mjs
+      - name: Apply schema on ephemeral CI PostgreSQL only; 0005 excluded by policy
+        run: |
+          for file in db/migrations/*.sql; do
+            case "$file" in
+              *0005_navasan_private_daily_ohlc.sql) echo 'Blocked migration 0005 cannot run'; exit 1;;
+            esac
+            psql -X -v ON_ERROR_STOP=1 -f "$file" >/dev/null
+          done
+      - name: PostgreSQL atomic transaction and consent invariant tests
+        run: |
+          for file in db/tests/*.sql; do
+            psql -X -v ON_ERROR_STOP=1 -f "$file" >/dev/null
+          done
+      - name: Separate-session CAS race between two simulated Workers
+        run: node scripts/check-alert-runtime-concurrency.mjs
