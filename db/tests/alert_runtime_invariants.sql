@@ -147,6 +147,31 @@ BEGIN
   PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
     'UNKNOWN',NULL,t+interval '5 minutes 5 seconds');
 
+  -- A revoked oldest message must not starve a valid queued notification.
+  PERFORM public.notification_outbox_enqueue(v_user,'revoked-oldest',
+    'BALE',v_recipient,3);
+  PERFORM public.notification_outbox_enqueue(v_other,'active-after-revoked',
+    'BALE',v_recipient,3);
+  UPDATE public.notification_outbox
+    SET created_at = t-interval '2 hours'
+  WHERE event_key='revoked-oldest';
+  UPDATE public.notification_outbox
+    SET created_at = t-interval '1 hour'
+  WHERE event_key='active-after-revoked';
+
+  SELECT * INTO result FROM public.alert_notification_claim_consented(
+    t+interval '6 minutes',30);
+  IF result.event_key <> 'active-after-revoked' THEN
+    RAISE EXCEPTION 'revoked queue head starved consenting recipient';
+  END IF;
+  SELECT status INTO current_status FROM public.notification_outbox
+  WHERE event_key='revoked-oldest';
+  IF current_status <> 'UNKNOWN' THEN
+    RAISE EXCEPTION 'revoked queued message not terminated during scan';
+  END IF;
+  PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
+    'UNKNOWN',NULL,t+interval '6 minutes 5 seconds');
+
   -- A revoked recipient never qualifies, even when the rule is valid.
   UPDATE public.alert_notification_consents
     SET revoked_at = t-interval '1 minute'
