@@ -61,6 +61,12 @@ function validateArgs({db,domain,principal,rule,recipient,observation,now}){
     observation.symbol!==rule.symbol||observation.provider!==rule.provider||
     observation.unit!==rule.unit||observation.side!==rule.legs[0].side)
    throw new TypeError('observation must match trusted source, unit and exit side');
+ // The persisted gate/high-water state contains historical provider prices.
+ // A display/alert license alone is NOT a right to store this state in Neon.
+ if(observation.permission?.publicDisplay!==true||
+    observation.permission?.derivedAlerts!==true||
+    observation.permission?.historicalStorage!==true)
+   throw new Error('PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED');
  if(typeof now!=='string'||!Number.isFinite(Date.parse(now)))
    throw new TypeError('valid server time required');
 }
