@@ -141,6 +141,18 @@ BEGIN
     THEN RAISE EXCEPTION 'invalid triggered event or recipient' USING ERRCODE = '22023';
     END IF;
 
+    -- Defense in depth: the data-integrity gate must have accepted the
+    -- same exact timestamp; an event cannot bypass a suspended price feed.
+    IF p_next_state #>> '{gate,suspended}' IS DISTINCT FROM 'false'
+      OR p_next_state #>> '{gate,lastSampleAt}'
+        IS DISTINCT FROM p_next_state #>> '{alert,lastTimestamp}'
+      OR p_next_state #>> '{gate,lastAccepted,timestamp}'
+        IS DISTINCT FROM p_next_state #>> '{alert,lastTimestamp}'
+    THEN
+      RAISE EXCEPTION 'unverified or stale quality gate cannot enqueue'
+        USING ERRCODE = '22023';
+    END IF;
+
     -- No implicit consent, no stored chat identifiers. Lock the opt-in row so
     -- revocation and enqueue cannot commit in the opposite order.
     PERFORM 1 FROM public.alert_notification_consents AS consent
