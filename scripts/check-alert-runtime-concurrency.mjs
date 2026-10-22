@@ -68,16 +68,16 @@ const competing=await Promise.all([0,1].map(()=>new Promise((resolve,reject)=>{
  proc.on('close',code=>code===0?resolve(out.trim()):
    reject(new Error('CONCURRENT_SEND_PERMIT_FAILED_REDACTED')));
 })));
-assert.deepEqual(competing.slice().sort(),['f','t']);
+assert.deepEqual(competing.slice().sort(),['false','true']);
 const permitState=stmt("SELECT count(*) FROM public.notification_outbox "+
   "WHERE id='"+claimedId+"' AND send_started_at='2026-10-22T12:00:06Z'");
 assert.equal(permitState,'1');
 assert.equal(stmt("SELECT public.alert_notification_egress_allowed('"+
-  claimedId+"','"+token+"','"+dest+"','BALE','2026-10-22T12:00:07Z')::text"),'t');
+  claimedId+"','"+token+"','"+dest+"','BALE','2026-10-22T12:00:07Z')::text"),'true');
 stmt("UPDATE public.alert_notification_consents SET revoked_at='2026-10-22T12:00:08Z' "+
  "WHERE user_id='"+user+"' AND recipient_ref='"+dest+"' AND channel='BALE'");
 assert.equal(stmt("SELECT public.alert_notification_egress_allowed('"+
-  claimedId+"','"+token+"','"+dest+"','BALE','2026-10-22T12:00:09Z')::text"),'f');
+  claimedId+"','"+token+"','"+dest+"','BALE','2026-10-22T12:00:09Z')::text"),'false');
 
 console.log('ALERT_STATE_OUTBOX_CAS_VERIFIED',JSON.stringify({
  simultaneousEvaluations:2,successfulTriggers:1,staleOrTerminal:1,
