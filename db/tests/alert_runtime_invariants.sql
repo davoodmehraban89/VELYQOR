@@ -26,7 +26,19 @@ BEGIN
     'triggeredAt','2026-10-22T12:01:00.000Z',
     'eventId',event_id,
     'highWater',1100,
-    'consecutive',1));
+    'consecutive',1),
+    'gate',jsonb_build_object(
+      'suspended',false,
+      'lastSampleAt','2026-10-22T12:01:00.000Z',
+      'lastAccepted',jsonb_build_object(
+        'timestamp','2026-10-22T12:01:00.000Z',
+        'provider','S1',
+        'symbol','USD_IRT_FREE',
+        'side','SELL',
+        'unit','IRT_PER_USD',
+        'price',1100
+      )
+    ));
 
   -- Safe rule-state writes require no user notification at all.
   SELECT * INTO result FROM public.alert_rule_commit(v_user,'threshold1',0,
@@ -61,6 +73,18 @@ BEGIN
   INSERT INTO public.alert_notification_consents
     (user_id,recipient_ref,channel,consented_at)
   VALUES (v_user,v_recipient,'BALE',t-interval '10 minutes');
+  -- Simulate a forged trigger with a suspended quality gate. It must not
+  -- create any outbox record or advance revision even with valid consent.
+  BEGIN
+    PERFORM * FROM public.alert_rule_commit(v_user,'threshold1',1,
+      jsonb_set(crossed_state,'{gate,suspended}','true'::jsonb),
+      event_id,'BALE',v_recipient,t+interval '1 minute');
+    RAISE EXCEPTION 'suspended gate enqueued an informational alert';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
+  SELECT count(*) INTO n FROM public.notification_outbox WHERE user_id=v_user;
+  IF n <> 0 THEN RAISE EXCEPTION 'suspended gate wrote outbox'; END IF;
+
 
   -- Two changes happen in the SAME SQL transaction, no write half-completion.
   SELECT * INTO result FROM public.alert_rule_commit(v_user,'threshold1',1,
