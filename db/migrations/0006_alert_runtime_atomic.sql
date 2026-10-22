@@ -212,7 +212,7 @@ CREATE FUNCTION public.alert_notification_claim_consented(
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = pg_catalog, public
-AS $
+AS $alert_claim$
 DECLARE
   v_claim RECORD;
   v_authorized BOOLEAN;
@@ -267,7 +267,7 @@ BEGIN
   attempt_number := v_claim.attempt_number;
   RETURN NEXT;
 END;
-$;
+$alert_claim$;
 
 -- Persisted state is owned by backend service only. No default browser/anon
 -- SELECT/INSERT/UPDATE or function EXECUTE grants are introduced.
