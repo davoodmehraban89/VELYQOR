@@ -1,5 +1,17 @@
 # VELYQOR Project State
 
+## 2026-10-22 — Atomic notification outbox review only, Draft PR #34
+
+- [Draft PR #34](https://github.com/davoodmehraban89/VELYQOR/pull/34) starts **independently from \`main\` at \`4649149b1f920aecbe4c26597983d9bb35d90427\`**. It provides proposed \`db/migrations/0004_notification_outbox.sql\`, a SQL invariant test and an **actual two-client PostgreSQL race test** in an isolated GitHub CI job. **This is NOT a live database migration or deployed feature.**
+- The SQL uses a unique per-user/event/channel/opaque-recipient key, transactional \`FOR UPDATE SKIP LOCKED\` claims, random lease tokens, capped attempts, and **terminal UNKNOWN** for ambiguous or expired in-flight sends. SQL permissions default to no public access; there is **no bot token, chat ID, order API, or message body** in the schema.
+- [Concurrency test run 39843468112](https://github.com/davoodmehraban89/VELYQOR/actions/runs/39843468112), job 120050433647, **passed** on a temporary local PostgreSQL 18 GitHub Action: concurrent enqueue returned the same ID and one row, locked claim was skipped by another connection, no subsequent duplicate claim, and attempt count stayed one. Original main CI \`postgres-invariants\` applied 0001–0004 on ephemeral PostgreSQL and succeeded.
+- **Limits:** no real Neon changes; service principal, RLS/tenant authorization, provider rights, recipient mapping, alert-to-outbox integration, real Bale send and verified user ACK remain **تأییدنشده**. No claim of exactly-once delivery. Three independent human/AI reviewers remain unavailable/not completed; three CI perspectives do not substitute.
+- **Protected:** \`db/migrations/0005_navasan_private_daily_ohlc.sql\` is neither modified nor executed; user untracked worktrees are untouched. Draft PR #33 remains unmerged. No production Merge, Deploy, deletion, external message, secret access or financial order.
+- Next release gates: successful exact-head CI, approved runtime authentication and migration strategy, actual valid data rights, and separate explicit approval before any Neon/schema or production Worker changes. [Full threat model and remaining gaps](docs/operations/chartnova-atomic-outbox-2026-10-22.md).
+
+---
+
+
 ## Latest Stage-1 checkpoint — 2026-10-15 (DOC-ONLY / not yet merged)
 
 **Review base:** [main 381ba284d47f284f034afacc7d6cc41fc31af8f9](https://github.com/davoodmehraban89/VELYQOR/commit/381ba284d47f284f034afacc7d6cc41fc31af8f9). This heading **supersedes all time-specific "current production" claims below** without falsifying the historical events.
