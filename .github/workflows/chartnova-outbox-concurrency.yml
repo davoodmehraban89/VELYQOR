@@ -5,6 +5,8 @@ on:
       - 'db/migrations/0004_notification_outbox.sql'
       - 'db/tests/notification_outbox_invariants.sql'
       - 'scripts/check-outbox-concurrency.mjs'
+      - 'docs/operations/chartnova-atomic-outbox-2026-10-22.md'
+      - 'PROJECT_STATE.md'
       - '.github/workflows/chartnova-outbox-concurrency.yml'
   workflow_dispatch:
 permissions:
