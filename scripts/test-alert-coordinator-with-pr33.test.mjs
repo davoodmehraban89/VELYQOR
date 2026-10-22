@@ -16,7 +16,7 @@ const destination={channel:'BALE',recipientRef:'b2222222-2222-4222-8222-22222222
  optInVerified:true};
 const rule={id:'licensed-usd-above',symbol:'USD_IRT_FREE',unit:'IRT_PER_USD',
  provider:'TestEntitledFeed',legs:[{type:'ABOVE',side:'SELL',threshold:105}]};
-const goodPermission={publicDisplay:true,derivedAlerts:true};
+const goodPermission={publicDisplay:true,derivedAlerts:true,historicalStorage:true};
 const q=(i,price,permission=goodPermission)=>({
  symbol:rule.symbol,unit:rule.unit,provider:rule.provider,side:'SELL',
  timestamp:time(i),price,permission
@@ -73,10 +73,15 @@ test('real PR33 data gate: stale, unlicensed and wrong quote side cannot enqueue
   {...q(1,120),timestamp:'2026-10-21T00:00:00.000Z'}
  ]){
   const db=mockPg();
-  const r=await invoke(db,sample);
-  assert.equal(r.outcome,'STATE_SAVED');
+  if(sample.permission===null){
+   await assert.rejects(()=>invoke(db,sample),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
+   assert.equal(db.record,null);
+  }else{
+   const r=await invoke(db,sample);
+   assert.equal(r.outcome,'STATE_SAVED');
+   assert.equal(db.record.gate.suspended,true);
+  }
   assert.equal(db.enqueue,0);
-  assert.equal(db.record.gate.suspended,true);
  }
  const db=mockPg();
  await assert.rejects(()=>invoke(db,{...q(1,120),side:'BUY'}),/exit side/);
