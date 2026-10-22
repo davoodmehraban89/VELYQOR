@@ -194,11 +194,88 @@ BEGIN
 END;
 $$;
 
+-- Optional future sender MUST claim through this consent-aware wrapper,
+-- not through the raw generic outbox claimant. A revoked consent permanently
+-- suppresses pending notification and never leaks it to a transport worker.
+-- The later live sender will require a second check just before HTTP send.
+CREATE FUNCTION public.alert_notification_claim_consented(
+  p_now TIMESTAMPTZ DEFAULT now(),
+  p_lease_seconds INTEGER DEFAULT 30
+) RETURNS TABLE (
+  outbox_id UUID,
+  event_key TEXT,
+  channel TEXT,
+  recipient_ref UUID,
+  claim_token UUID,
+  attempt_number INTEGER
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $
+DECLARE
+  v_claim RECORD;
+  v_authorized BOOLEAN;
+BEGIN
+  IF p_now IS NULL OR p_lease_seconds IS NULL
+    OR p_lease_seconds NOT BETWEEN 1 AND 300 THEN
+    RAISE EXCEPTION 'invalid consent-aware claim parameters'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_claim
+    FROM public.notification_outbox_claim(p_now, p_lease_seconds);
+  IF NOT FOUND THEN RETURN; END IF;
+
+  -- Check actual persisted user and recipient/owner binding rather than
+  -- trusting the caller or relying solely on opt-in at enqueue time.
+  SELECT true INTO v_authorized
+  FROM public.notification_outbox AS o
+  JOIN public.alert_notification_consents AS consent
+    ON consent.user_id = o.user_id
+     AND consent.recipient_ref = o.recipient_ref
+     AND consent.channel = o.channel
+  WHERE o.id = v_claim.outbox_id
+    AND o.status = 'LEASED'
+    AND o.lease_token = v_claim.claim_token
+    AND consent.consented_at <= p_now
+    AND consent.revoked_at IS NULL
+  FOR SHARE OF consent;
+
+  IF NOT COALESCE(v_authorized,false) THEN
+    -- No network call is performed. UNKNOWN is terminal under PR #34 schema;
+    -- the explicit reason distinguishes revoked consent from uncertain send.
+    UPDATE public.notification_outbox AS o
+    SET status = 'UNKNOWN',
+        failure_reason = 'RECIPIENT_CONSENT_REVOKED_OR_MISSING',
+        lease_token = NULL,
+        leased_at = NULL,
+        lease_until = NULL,
+        next_retry_at = NULL,
+        updated_at = p_now
+    WHERE o.id = v_claim.outbox_id
+      AND o.status = 'LEASED'
+      AND o.lease_token = v_claim.claim_token;
+    RETURN;
+  END IF;
+
+  outbox_id := v_claim.outbox_id;
+  event_key := v_claim.event_key;
+  channel := v_claim.channel;
+  recipient_ref := v_claim.recipient_ref;
+  claim_token := v_claim.claim_token;
+  attempt_number := v_claim.attempt_number;
+  RETURN NEXT;
+END;
+$;
+
 -- Persisted state is owned by backend service only. No default browser/anon
 -- SELECT/INSERT/UPDATE or function EXECUTE grants are introduced.
 REVOKE ALL ON public.alert_rule_runtime FROM PUBLIC;
 REVOKE ALL ON public.alert_notification_consents FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.alert_rule_commit(
   UUID, TEXT, BIGINT, JSONB, TEXT, TEXT, UUID, TIMESTAMPTZ) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.alert_notification_claim_consented(
+  TIMESTAMPTZ, INTEGER) FROM PUBLIC;
 
 COMMIT;
