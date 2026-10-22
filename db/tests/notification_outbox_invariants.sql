@@ -154,6 +154,26 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'unexpected PUBLIC table privilege';
   END IF;
+
+  -- PostgreSQL grants EXECUTE on newly created functions to PUBLIC unless
+  -- explicitly revoked; check each privileged outbox function.
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc AS p
+    JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+      COALESCE(p.proacl,pg_catalog.acldefault('f',p.proowner))
+    ) AS acl
+    WHERE n.nspname = 'public'
+      AND p.proname IN (
+        'notification_outbox_enqueue',
+        'notification_outbox_claim',
+        'notification_outbox_finish',
+        'notification_outbox_acknowledge'
+      )
+      AND acl.grantee = 0 AND acl.privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'outbox function EXECUTE unexpectedly available to PUBLIC';
+  END IF;
 END $$;
 
 ROLLBACK;
