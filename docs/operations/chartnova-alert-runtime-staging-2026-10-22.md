@@ -44,6 +44,25 @@
 - **Three independent human/AI agents have not reviewed this PR.** GitHub CI jobs are evidence of tests, not evidence of independent agents.
 - Earlier iOS/Safari blank-screen incident and exact v26 Worker backend source remain unresolved and unrelated to this SQL-only work.
 
+## Additional security review: single-use egress and private recipient binding
+
+**Source-reviewed risks found and fixed in Draft PR #35:**
+
+1. **Repeated sender calls could share an active DB lease and issue duplicate HTTP POSTs.** A new `send_started_at` marker in migration 0006 plus `alert_notification_begin_egress` consumes an atomic **single-use** send permit. A second/parallel caller receives `FALSE` and must not call the provider. The marker persists even after transient failures; the existing PR #34 expired-lease rule fails closed to terminal UNKNOWN, preventing blind retry.
+2. **The original sender flow accepted an arbitrary chat ID unrelated to the outbox's opaque recipient UUID.** `leased-bale-dispatch.mjs` now requires a **trusted server-side recipient resolver** and validates that the resolved recipient reference exactly matches the persisted outbox recipient reference. Both SQL egress permission functions also bind the channel and recipient reference to the actual claimed row. No externally chosen chat ID is accepted.
+3. **Consent can be revoked after claim but before send.** `alert_notification_egress_allowed` performs a second read-only check of the SAME row/recipient/channel/lease token directly before a network call; a revoked recipient is blocked. The wrapper uses `UNKNOWN` terminal persistence after a revoked/failed second preflight, never an automatic retry. There remains an unavoidable micro-window after the last database check before HTTP; this requires a narrowly controlled runtime sender and documented delivery-consent policy.
+4. **Transport confirmation is not read confirmation.** The injected actual PR #33 `bale-once-adapter.mjs` issues at most one `sendMessage` only after private `getChat` verification. Provider `message_id` is recorded as acceptance, never proof that the user opened/read the message. Ambiguous HTTP, malformed response and preflight failure are treated as UNKNOWN.
+
+**Tests in isolated CI:**
+- `db/tests/alert_runtime_invariants.sql`: repeated same-lease permit, wrong lease token, cross-recipient UUID, wrong channel, expired lease, revoked after claim and PUBLIC execute denial.
+- `scripts/check-alert-runtime-concurrency.mjs`: two separate real PostgreSQL client processes race on one send permit: expected **one TRUE, one FALSE**, one durable `send_started_at`, then revocation causes final egress authorization to return FALSE.
+- `scripts/test-leased-bale-pr33.test.mjs`: imports the **exact pinned real PR #33 Bale adapter**; uses a synthetic injected transport only. It covers concurrent dispatch calls, group-chat rejection, missing/unverified recipient mapping, wrong mapping, revoked consent and unknown provider outcomes. No real bot token, human account or HTTP POST is used.
+
+**Release-blocking trust contracts:** The `resolveRecipient` implementation, encrypted private mapping, bot token secret manager, approved least-privilege SQL role, verified source-license registry and actual opt-in are **not available**. The test resolver is synthetic and MUST NOT be presented as a live recipient mapping. These components remain **تأییدنشده**.
+
+**Review process truth:** Functional, static/security and adversarial CI checks are separate automated jobs, but the required three independent AI/human review agents cannot be launched with the available Notion connection (`plan_required` on the Business plan). Do not assert reviewer approval or production completion.
+
+
 ## Safe delivery and rollback
 
 No production migration, Merge, Cloudflare deployment, Neon connection, user message, provider request or external cost was performed. Close this Draft PR to discard the proposal with no user data change. Before future release, the dependency order must be reconciled: #34 schema review, #33 domain engine review, #35 integration, then staging/real-user evidence, followed by separately approved merges and deployment. Do not apply migration `0005_navasan_private_daily_ohlc.sql`.
