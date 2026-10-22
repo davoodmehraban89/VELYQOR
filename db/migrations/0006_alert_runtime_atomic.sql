@@ -277,6 +277,52 @@ BEGIN
 END;
 $alert_claim$;
 
+-- A message leased to a sender may be processed by overlapping job retries.
+-- Atomically consume a single send permit before ANY external network call.
+-- If the sender crashes after this point, lease expiry becomes terminal UNKNOWN
+-- under PR #34 (at-most-once attempt, possibly no delivery).
+ALTER TABLE public.notification_outbox
+ ADD COLUMN send_started_at TIMESTAMPTZ;
+
+CREATE FUNCTION public.alert_notification_begin_egress(
+  p_outbox_id UUID,
+  p_claim_token UUID,
+  p_at TIMESTAMPTZ DEFAULT now()
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $egress_begin$
+DECLARE
+  v_id UUID;
+BEGIN
+  IF p_outbox_id IS NULL OR p_claim_token IS NULL OR p_at IS NULL THEN
+    RAISE EXCEPTION 'invalid one-send authorization parameters'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- The UPDATE row-lock is the linearization point for all overlapping
+  -- senders using the same lease. WHERE send_started_at IS NULL ensures a
+  -- repeat caller receives FALSE without attempting a duplicate message.
+  UPDATE public.notification_outbox AS o
+  SET send_started_at = p_at, updated_at = p_at
+  FROM public.alert_notification_consents AS c
+  WHERE o.id = p_outbox_id
+    AND o.lease_token = p_claim_token
+    AND o.status = 'LEASED'
+    AND o.send_started_at IS NULL
+    AND o.leased_at <= p_at AND o.lease_until > p_at
+    AND c.user_id = o.user_id
+    AND c.channel = o.channel
+    AND c.recipient_ref = o.recipient_ref
+    AND c.consented_at <= p_at
+    AND c.revoked_at IS NULL
+  RETURNING o.id INTO v_id;
+
+  RETURN v_id IS NOT NULL;
+END;
+$egress_begin$;
+
 -- Second consent checkpoint immediately before a sender attempts HTTPS.
 -- A claim-time check alone is insufficient: the user can revoke consent later.
 -- This function is side-effect-free on a valid row, returns ONLY a boolean,
@@ -325,6 +371,8 @@ REVOKE ALL ON FUNCTION public.alert_rule_commit(
 REVOKE ALL ON FUNCTION public.alert_notification_claim_consented(
   TIMESTAMPTZ, INTEGER) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.alert_notification_egress_allowed(
+  UUID, UUID, TIMESTAMPTZ) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.alert_notification_begin_egress(
   UUID, UUID, TIMESTAMPTZ) FROM PUBLIC;
 
 COMMIT;
