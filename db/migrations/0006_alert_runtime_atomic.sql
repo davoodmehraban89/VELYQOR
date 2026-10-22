@@ -277,6 +277,45 @@ BEGIN
 END;
 $alert_claim$;
 
+-- Second consent checkpoint immediately before a sender attempts HTTPS.
+-- A claim-time check alone is insufficient: the user can revoke consent later.
+-- This function is side-effect-free on a valid row, returns ONLY a boolean,
+-- and never reads or reveals a chat ID, token or message payload.
+CREATE FUNCTION public.alert_notification_egress_allowed(
+  p_outbox_id UUID,
+  p_claim_token UUID,
+  p_at TIMESTAMPTZ DEFAULT now()
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $egress_check$
+DECLARE
+  v_can_send BOOLEAN := FALSE;
+BEGIN
+  IF p_outbox_id IS NULL OR p_claim_token IS NULL OR p_at IS NULL THEN
+    RAISE EXCEPTION 'invalid outbound authorization parameters'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Keep the outbox row locked during the check. The caller must use a
+  -- trusted backend role; no frontend, browser or PUBLIC access is granted.
+  SELECT true INTO v_can_send
+  FROM public.notification_outbox AS o
+  JOIN public.alert_notification_consents AS c
+    ON c.user_id = o.user_id
+    AND c.recipient_ref = o.recipient_ref
+    AND c.channel = o.channel
+  WHERE o.id = p_outbox_id AND o.lease_token = p_claim_token
+    AND o.status = 'LEASED'
+    AND o.leased_at <= p_at AND o.lease_until > p_at
+    AND c.consented_at <= p_at AND c.revoked_at IS NULL
+  FOR SHARE OF c;
+
+  RETURN COALESCE(v_can_send, FALSE);
+END;
+$egress_check$;
+
 -- Persisted state is owned by backend service only. No default browser/anon
 -- SELECT/INSERT/UPDATE or function EXECUTE grants are introduced.
 REVOKE ALL ON public.alert_rule_runtime FROM PUBLIC;
@@ -285,5 +324,7 @@ REVOKE ALL ON FUNCTION public.alert_rule_commit(
   UUID, TEXT, BIGINT, JSONB, TEXT, TEXT, UUID, TIMESTAMPTZ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.alert_notification_claim_consented(
   TIMESTAMPTZ, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.alert_notification_egress_allowed(
+  UUID, UUID, TIMESTAMPTZ) FROM PUBLIC;
 
 COMMIT;
