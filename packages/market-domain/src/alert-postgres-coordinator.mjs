@@ -51,13 +51,16 @@ function validateArgs({db,domain,principal,rule,recipient,observation,now}){
     typeof rule.provider!=='string'||!rule.provider||
     typeof rule.symbol!=='string'||!rule.symbol||
     typeof rule.unit!=='string'||!rule.unit||
-    !Array.isArray(rule.legs))
+    !Array.isArray(rule.legs)||rule.legs.length<1||rule.legs.length>2||
+    !['BUY','SELL'].includes(rule.legs[0]?.side))
    throw new TypeError('trusted rule contract required');
  if(!ID.test(recipient?.recipientRef)||!ALLOWED_CHANNELS.has(recipient?.channel)||
    recipient.optInVerified!==true)
    throw new TypeError('verified recipient mapping required');
- if(!observation||typeof observation!=='object')
-   throw new TypeError('observation required');
+ if(!observation||typeof observation!=='object'||
+    observation.symbol!==rule.symbol||observation.provider!==rule.provider||
+    observation.unit!==rule.unit||observation.side!==rule.legs[0].side)
+   throw new TypeError('observation must match trusted source, unit and exit side');
  if(typeof now!=='string'||!Number.isFinite(Date.parse(now)))
    throw new TypeError('valid server time required');
 }
