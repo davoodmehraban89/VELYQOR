@@ -50,8 +50,38 @@ assert.equal(count,'1');
 const runtime=stmt("SELECT revision::text||':'||(state #>> '{alert,phase}') "+
  "FROM public.alert_rule_runtime WHERE user_id='"+user+"' AND rule_key='"+rule+"'");
 assert.equal(runtime,'1:TRIGGERED');
+// Distinct process race after one CONSENTED claim: a single-use send permit
+// must authorize exactly one sender, even for the SAME valid claim token.
+const row=stmt("SELECT outbox_id::text||'|'||claim_token::text "+
+  "FROM public.alert_notification_claim_consented('2026-10-22T12:00:05Z',30)");
+const [claimedId,token]=row.split('|');
+assert.equal(claimedId,success[0].split('|')[2]);
+assert.match(token,/^[a-f0-9-]{36}$/i);
+const begin="SELECT public.alert_notification_begin_egress('"+claimedId+
+  "','"+token+"','2026-10-22T12:00:06Z')::text";
+const competing=await Promise.all([0,1].map(()=>new Promise((resolve,reject)=>{
+ const proc=spawn('psql',['-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-c',begin],
+  {env,stdio:['ignore','pipe','pipe']});
+ let out='';
+ proc.stdout.on('data',x=>out+=x.toString());
+ proc.on('error',reject);
+ proc.on('close',code=>code===0?resolve(out.trim()):
+   reject(new Error('CONCURRENT_SEND_PERMIT_FAILED_REDACTED')));
+})));
+assert.deepEqual(competing.slice().sort(),['f','t']);
+const permitState=stmt("SELECT count(*) FROM public.notification_outbox "+
+  "WHERE id='"+claimedId+"' AND send_started_at='2026-10-22T12:00:06Z'");
+assert.equal(permitState,'1');
+assert.equal(stmt("SELECT public.alert_notification_egress_allowed('"+
+  claimedId+"','"+token+"','2026-10-22T12:00:07Z')::text"),'t');
+stmt("UPDATE public.alert_notification_consents SET revoked_at='2026-10-22T12:00:08Z' "+
+ "WHERE user_id='"+user+"' AND recipient_ref='"+dest+"' AND channel='BALE'");
+assert.equal(stmt("SELECT public.alert_notification_egress_allowed('"+
+  claimedId+"','"+token+"','2026-10-22T12:00:09Z')::text"),'f');
+
 console.log('ALERT_STATE_OUTBOX_CAS_VERIFIED',JSON.stringify({
  simultaneousEvaluations:2,successfulTriggers:1,staleOrTerminal:1,
- outboxRows:1,revision:1,liveDatabaseTouched:false,
+ outboxRows:1,revision:1,parallelSendPermits:2,successfulSendPermits:1,
+ consentRevokedAfterPermitPreventsEgress:true,liveDatabaseTouched:false,
  location:'disposable_local_postgres_ci'
 }));
