@@ -144,6 +144,18 @@ BEGIN
   IF result.event_key <> 'consented-alert' OR result.claim_token IS NULL THEN
     RAISE EXCEPTION 'consented claimant did not receive authorized pending event';
   END IF;
+  IF NOT public.alert_notification_egress_allowed(
+      result.outbox_id, result.claim_token, t+interval '5 minutes 1 second') THEN
+    RAISE EXCEPTION 'valid leased and consenting recipient denied at egress';
+  END IF;
+  IF public.alert_notification_egress_allowed(
+      result.outbox_id, gen_random_uuid(), t+interval '5 minutes 1 second') THEN
+    RAISE EXCEPTION 'wrong lease token authorized message egress';
+  END IF;
+  IF public.alert_notification_egress_allowed(
+      result.outbox_id, result.claim_token, t+interval '6 minutes') THEN
+    RAISE EXCEPTION 'expired lease permitted message egress';
+  END IF;
   PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
     'UNKNOWN',NULL,t+interval '5 minutes 5 seconds');
 
@@ -171,6 +183,31 @@ BEGIN
   END IF;
   PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
     'UNKNOWN',NULL,t+interval '6 minutes 5 seconds');
+
+  -- Consent can be revoked after a valid claim but BEFORE egress.
+  -- A second independent DB check must fail even if the lease is current.
+  PERFORM public.notification_outbox_enqueue(v_other,'egress-after-revocation',
+    'BALE',v_recipient,3);
+  SELECT * INTO result FROM public.alert_notification_claim_consented(
+    t+interval '7 minutes',30);
+  IF result.event_key <> 'egress-after-revocation' THEN
+    RAISE EXCEPTION 'unexpected queue item in revocation preflight';
+  END IF;
+
+  UPDATE public.alert_notification_consents
+    SET revoked_at = t + interval '7 minutes 1 second'
+  WHERE user_id=v_other AND recipient_ref=v_recipient AND channel='BALE';
+
+  IF public.alert_notification_egress_allowed(
+      result.outbox_id, result.claim_token, t+interval '7 minutes 2 seconds') THEN
+    RAISE EXCEPTION 'revoked consent still authorized outbound message';
+  END IF;
+  IF public.alert_notification_egress_allowed(
+      result.outbox_id, gen_random_uuid(), t+interval '7 minutes 2 seconds') THEN
+    RAISE EXCEPTION 'foreign claim permitted outbound message';
+  END IF;
+  PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
+    'UNKNOWN',NULL,t+interval '7 minutes 3 seconds');
 
   -- A revoked recipient never qualifies, even when the rule is valid.
   UPDATE public.alert_notification_consents
@@ -218,7 +255,8 @@ BEGIN
       COALESCE(p.proacl,pg_catalog.acldefault('f',p.proowner))
     ) AS acl
     WHERE ns.nspname='public' AND p.proname IN
-      ('alert_rule_commit','alert_notification_claim_consented')
+      ('alert_rule_commit','alert_notification_claim_consented',
+       'alert_notification_egress_allowed')
       AND acl.grantee=0 AND acl.privilege_type='EXECUTE'
   ) THEN
     RAISE EXCEPTION 'unsafe PUBLIC execute grant';
