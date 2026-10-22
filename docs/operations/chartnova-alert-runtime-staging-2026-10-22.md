@@ -10,6 +10,22 @@
 4. [Coordinator](../../packages/market-domain/src/alert-postgres-coordinator.mjs) accepts injected \`evaluateQuoteGate\` and \`stepAlert\` functions from PR #33, a verified server principal and a PostgreSQL \`query\` adapter. It blocks mismatched provider/instrument/quote-side and any missing **public display + derived alerts + historical storage licensing** BEFORE storing source prices. Its gate-to-rule-to-event bindings check price/time/source, rule identity and the explicit information-only label. It retries an optimistic version conflict at most three times and performs no network sending.
 5. **Data minimization:** outbox persists only event key, user UUID, channel and opaque recipient reference; rule runtime stores quote information required for spike/trailing calculations, therefore historical-storage permission is mandatory. No bot token, chat ID, API key, broker credentials or order instructions are stored.
 
+## Revoked-consent delivery safety (new)
+
+- The proposed future sender must use SQL function \`alert_notification_claim_consented\`, **not** raw PR #34 \`notification_outbox_claim\`. The wrapper looks up each claimed row's actual **user ID, recipient reference and channel** and checks active consent from the database again before handing anything to an outbound transport.
+- If consent was revoked **after enqueue but before claim**, the wrapper marks the unsent row terminal \`UNKNOWN\` with explicit reason \`RECIPIENT_CONSENT_REVOKED_OR_MISSING\`; it does NOT call any messaging provider and does not retry. Under PR #34's existing status model, \`UNKNOWN\` is the only non-retry terminal available without changing the approved schema. The reason differentiates revocation from a real uncertain HTTP delivery.
+- To avoid starvation when old/revoked recipients are at the head of the queue, the wrapper scans at most **16** pending rows per claim, terminating revoked ones and returning the first entitled recipient if found. A larger backlog requires subsequent scheduled checks; no unbounded loop.
+- PostgreSQL invariant tests cover an active consent, revoked consent, revoke-after-enqueue, repeated claim of a revoked item, multiple queued recipients and a revoked oldest entry preceding an eligible recipient.
+- **Residual race**: consent can be revoked after a database claim transaction commits but before an external HTTP request. A future real sender MUST recheck consent immediately before egress, and document this unavoidable race in the operational contract. No such sender, connector or external network action exists in this PR.
+- SQL privilege policy must prohibit the approved runtime sender from bypassing this wrapper via direct raw claim or table mutation. **Least-privilege role grants are not implemented here**, so no proof of fully enforced sender isolation exists.
+
+### Test failures repaired
+
+- One first-pass run failed because an added PL/pgSQL wrapper was incorrectly dollar-quoted. Repaired with named \`$alert_claim$\` delimiters.
+- A follow-up test run found a missing declared local test variable \`current_status\`. The declaration was added; neither issue affected Neon or live users.
+- Subsequent green checks validate the repaired schema on disposable PostgreSQL; failures have not been erased from GitHub Actions history.
+
+
 ## Test evidence (read only from source repository)
 
 - SQL invariant tests run against a fresh PostgreSQL 18 service on GitHub Actions and **ROLLBACK test fixtures**. They assert no unconsented/revoked send, correct CAS revisions, exactly one terminal event, no duplicate enqueue, no public permissions and a quality gate that is not suspended.
