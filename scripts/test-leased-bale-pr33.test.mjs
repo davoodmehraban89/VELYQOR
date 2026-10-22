@@ -11,13 +11,21 @@ const outboxId='e1111111-1111-4111-8111-111111111111';
 const claimToken='f2222222-2222-4222-8222-222222222222';
 const at='2026-10-22T12:00:00.000Z';
 const token='123456:aVeryLongSyntheticNeverRealToken';
-const base={outboxId,claimToken,at,token,chatId:'12345',text:'پیام آزمایشی بدون ارسال واقعی'};
+const recipientRef='c3333333-3333-4333-8333-333333333333';
+const resolver=async({recipientRef:ref,channel})=>({verified:channel==='BALE',
+  recipientRef:ref,chatId:'12345'});
+const base={outboxId,claimToken,recipientRef,resolveRecipient:resolver,
+  at,token,text:'پیام آزمایشی بدون ارسال واقعی'};
 function fakeStore({consented=true}={}){
  let permit=false,finished=null;
  return{get permit(){return permit},get finished(){return finished},
   async query(sql,params){
    assert.equal(params[0],outboxId);
    assert.equal(params[1],claimToken);
+   if(sql.includes('alert_notification_')) {
+    assert.equal(params[2],recipientRef);
+    assert.equal(params[3],'BALE');
+   }
    if(sql.includes('alert_notification_begin_egress')){
     const ok=!permit&&consented;
     if(ok)permit=true;
@@ -108,6 +116,26 @@ test('group chat rejected in real PR33 adapter; cannot claim accepted',async()=>
   baleOneMessage:wrappedBale(fakeTransport(counters,{group:true}))});
  assert.equal(result.status,'UNKNOWN');
  assert.equal(counters.send,0);assert.equal(db.finished,'UNKNOWN');
+});
+test('wrong trusted-recipient lookup cannot redirect alerts to arbitrary chats',async()=>{
+ const db=fakeStore(),counters={preflight:0,send:0};
+ const wrong=async()=>({verified:true,recipientRef:'d4444444-4444-4444-8444-444444444444',chatId:'12345'});
+ const res=await dispatchLeasedBale({...base,db,resolveRecipient:wrong,
+  baleOneMessage:wrappedBale(fakeTransport(counters))});
+ assert.equal(res.status,'BLOCKED');
+ assert.equal(res.reason,'RECIPIENT_MAPPING_UNVERIFIED');
+ assert.equal(db.permit,false);
+ assert.equal(counters.send,0);
+});
+test('unverified lookup never obtains a send permit even with a valid DB lease',async()=>{
+ const db=fakeStore(),counters={preflight:0,send:0};
+ const wrong=async({recipientRef})=>({verified:false,recipientRef,chatId:'12345'});
+ const result=await dispatchLeasedBale({...base,db,resolveRecipient:wrong,
+  baleOneMessage:wrappedBale(fakeTransport(counters))});
+ assert.equal(result.status,'BLOCKED');
+ assert.equal(db.permit,false);
+ assert.equal(counters.preflight,0);
+ assert.equal(counters.send,0);
 });
 test('incorrect ID and missing trusted SQL driver fail before network',async()=>{
  await assert.rejects(()=>dispatchLeasedBale({...base,db:null,
