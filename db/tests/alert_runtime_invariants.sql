@@ -148,6 +148,14 @@ BEGIN
       result.outbox_id, result.claim_token, t+interval '5 minutes 1 second') THEN
     RAISE EXCEPTION 'valid leased and consenting recipient denied at egress';
   END IF;
+  IF NOT public.alert_notification_begin_egress(
+      result.outbox_id, result.claim_token, t+interval '5 minutes 1 second') THEN
+    RAISE EXCEPTION 'first valid send permit not issued';
+  END IF;
+  IF public.alert_notification_begin_egress(
+      result.outbox_id, result.claim_token, t+interval '5 minutes 2 seconds') THEN
+    RAISE EXCEPTION 'repeated send permit enabled duplicate outbound message';
+  END IF;
   IF public.alert_notification_egress_allowed(
       result.outbox_id, gen_random_uuid(), t+interval '5 minutes 1 second') THEN
     RAISE EXCEPTION 'wrong lease token authorized message egress';
@@ -201,6 +209,10 @@ BEGIN
   IF public.alert_notification_egress_allowed(
       result.outbox_id, result.claim_token, t+interval '7 minutes 2 seconds') THEN
     RAISE EXCEPTION 'revoked consent still authorized outbound message';
+  END IF;
+  IF public.alert_notification_begin_egress(
+      result.outbox_id, result.claim_token, t+interval '7 minutes 2 seconds') THEN
+    RAISE EXCEPTION 'revoked consent issued an outbound send permit';
   END IF;
   IF public.alert_notification_egress_allowed(
       result.outbox_id, gen_random_uuid(), t+interval '7 minutes 2 seconds') THEN
@@ -256,7 +268,7 @@ BEGIN
     ) AS acl
     WHERE ns.nspname='public' AND p.proname IN
       ('alert_rule_commit','alert_notification_claim_consented',
-       'alert_notification_egress_allowed')
+       'alert_notification_egress_allowed','alert_notification_begin_egress')
       AND acl.grantee=0 AND acl.privilege_type='EXECUTE'
   ) THEN
     RAISE EXCEPTION 'unsafe PUBLIC execute grant';
