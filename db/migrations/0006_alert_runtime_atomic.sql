@@ -287,6 +287,8 @@ ALTER TABLE public.notification_outbox
 CREATE FUNCTION public.alert_notification_begin_egress(
   p_outbox_id UUID,
   p_claim_token UUID,
+  p_recipient_ref UUID,
+  p_channel TEXT,
   p_at TIMESTAMPTZ DEFAULT now()
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -296,7 +298,9 @@ AS $egress_begin$
 DECLARE
   v_id UUID;
 BEGIN
-  IF p_outbox_id IS NULL OR p_claim_token IS NULL OR p_at IS NULL THEN
+  IF p_outbox_id IS NULL OR p_claim_token IS NULL OR p_recipient_ref IS NULL
+    OR p_channel IS NULL OR p_channel NOT IN ('BALE','EITA','PWA')
+    OR p_at IS NULL THEN
     RAISE EXCEPTION 'invalid one-send authorization parameters'
       USING ERRCODE = '22023';
   END IF;
@@ -309,6 +313,8 @@ BEGIN
   FROM public.alert_notification_consents AS c
   WHERE o.id = p_outbox_id
     AND o.lease_token = p_claim_token
+    AND o.recipient_ref = p_recipient_ref
+    AND o.channel = p_channel
     AND o.status = 'LEASED'
     AND o.send_started_at IS NULL
     AND o.leased_at <= p_at AND o.lease_until > p_at
@@ -330,6 +336,8 @@ $egress_begin$;
 CREATE FUNCTION public.alert_notification_egress_allowed(
   p_outbox_id UUID,
   p_claim_token UUID,
+  p_recipient_ref UUID,
+  p_channel TEXT,
   p_at TIMESTAMPTZ DEFAULT now()
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -339,7 +347,9 @@ AS $egress_check$
 DECLARE
   v_can_send BOOLEAN := FALSE;
 BEGIN
-  IF p_outbox_id IS NULL OR p_claim_token IS NULL OR p_at IS NULL THEN
+  IF p_outbox_id IS NULL OR p_claim_token IS NULL OR p_recipient_ref IS NULL
+    OR p_channel IS NULL OR p_channel NOT IN ('BALE','EITA','PWA')
+    OR p_at IS NULL THEN
     RAISE EXCEPTION 'invalid outbound authorization parameters'
       USING ERRCODE = '22023';
   END IF;
@@ -353,6 +363,7 @@ BEGIN
     AND c.recipient_ref = o.recipient_ref
     AND c.channel = o.channel
   WHERE o.id = p_outbox_id AND o.lease_token = p_claim_token
+    AND o.recipient_ref = p_recipient_ref AND o.channel = p_channel
     AND o.status = 'LEASED'
     AND o.leased_at <= p_at AND o.lease_until > p_at
     AND c.consented_at <= p_at AND c.revoked_at IS NULL
@@ -371,8 +382,8 @@ REVOKE ALL ON FUNCTION public.alert_rule_commit(
 REVOKE ALL ON FUNCTION public.alert_notification_claim_consented(
   TIMESTAMPTZ, INTEGER) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.alert_notification_egress_allowed(
-  UUID, UUID, TIMESTAMPTZ) FROM PUBLIC;
+  UUID, UUID, UUID, TEXT, TIMESTAMPTZ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.alert_notification_begin_egress(
-  UUID, UUID, TIMESTAMPTZ) FROM PUBLIC;
+  UUID, UUID, UUID, TEXT, TIMESTAMPTZ) FROM PUBLIC;
 
 COMMIT;
