@@ -10,7 +10,7 @@ const timestamp='2026-10-22T12:00:00.000Z';
 const rule={id:'usd-upper',symbol:'USD_IRT_FREE',provider:'LicensedFeed',unit:'IRT_PER_USD',
   legs:[{type:'ABOVE',side:'SELL',threshold:100}]};
 const quote={provider:rule.provider,symbol:rule.symbol,unit:rule.unit,side:'SELL',
- price:110,timestamp,permission:{publicDisplay:true,derivedAlerts:true}};
+ price:110,timestamp,permission:{publicDisplay:true,derivedAlerts:true,historicalStorage:true}};
 const NON_ADVISORY='اطلاعات آموزشی و غیرتوصیه‌ای';
 const event={kind:'INFORMATIONAL_THRESHOLD',
  id:'usd-upper:2026-10-22T12:00:00.000Z:0',
@@ -144,4 +144,16 @@ test('refuses inconsistent/malformed database responses',async()=>{
   return orig(sql,vals);
  };
  await assert.rejects(()=>evaluateAndPersistAlert(args(e)),/CORRUPT_ALERT_STATE_RESULT/);
+});
+
+test('no historical-storage entitlement forbids ANY database read or write',async()=>{
+ for(const permission of [null,{publicDisplay:true,derivedAlerts:true},
+   {publicDisplay:true,historicalStorage:true},
+   {derivedAlerts:true,historicalStorage:true}]){
+   const e=engine();
+   await assert.rejects(()=>evaluateAndPersistAlert({
+     ...args(e),observation:{...quote,permission}
+   }),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
+   assert.equal(e.db.calls.length,0);
+ }
 });
