@@ -145,23 +145,33 @@ BEGIN
     RAISE EXCEPTION 'consented claimant did not receive authorized pending event';
   END IF;
   IF NOT public.alert_notification_egress_allowed(
-      result.outbox_id, result.claim_token, t+interval '5 minutes 1 second') THEN
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '5 minutes 1 second') THEN
     RAISE EXCEPTION 'valid leased and consenting recipient denied at egress';
   END IF;
+  IF public.alert_notification_begin_egress(
+      result.outbox_id, result.claim_token, gen_random_uuid(),'BALE',
+      t+interval '5 minutes 1 second') THEN
+    RAISE EXCEPTION 'foreign recipient reference obtained send permission';
+  END IF;
+  IF public.alert_notification_begin_egress(
+      result.outbox_id, result.claim_token, v_recipient,'EITA',
+      t+interval '5 minutes 1 second') THEN
+    RAISE EXCEPTION 'wrong channel obtained Bale message send permission';
+  END IF;
   IF NOT public.alert_notification_begin_egress(
-      result.outbox_id, result.claim_token, t+interval '5 minutes 1 second') THEN
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '5 minutes 1 second') THEN
     RAISE EXCEPTION 'first valid send permit not issued';
   END IF;
   IF public.alert_notification_begin_egress(
-      result.outbox_id, result.claim_token, t+interval '5 minutes 2 seconds') THEN
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '5 minutes 2 seconds') THEN
     RAISE EXCEPTION 'repeated send permit enabled duplicate outbound message';
   END IF;
   IF public.alert_notification_egress_allowed(
-      result.outbox_id, gen_random_uuid(), t+interval '5 minutes 1 second') THEN
+      result.outbox_id, gen_random_uuid(), v_recipient,'BALE', t+interval '5 minutes 1 second') THEN
     RAISE EXCEPTION 'wrong lease token authorized message egress';
   END IF;
   IF public.alert_notification_egress_allowed(
-      result.outbox_id, result.claim_token, t+interval '6 minutes') THEN
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '6 minutes') THEN
     RAISE EXCEPTION 'expired lease permitted message egress';
   END IF;
   PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
@@ -207,15 +217,15 @@ BEGIN
   WHERE user_id=v_other AND recipient_ref=v_recipient AND channel='BALE';
 
   IF public.alert_notification_egress_allowed(
-      result.outbox_id, result.claim_token, t+interval '7 minutes 2 seconds') THEN
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '7 minutes 2 seconds') THEN
     RAISE EXCEPTION 'revoked consent still authorized outbound message';
   END IF;
   IF public.alert_notification_begin_egress(
-      result.outbox_id, result.claim_token, t+interval '7 minutes 2 seconds') THEN
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '7 minutes 2 seconds') THEN
     RAISE EXCEPTION 'revoked consent issued an outbound send permit';
   END IF;
   IF public.alert_notification_egress_allowed(
-      result.outbox_id, gen_random_uuid(), t+interval '7 minutes 2 seconds') THEN
+      result.outbox_id, gen_random_uuid(), v_recipient,'BALE', t+interval '7 minutes 2 seconds') THEN
     RAISE EXCEPTION 'foreign claim permitted outbound message';
   END IF;
   PERFORM public.notification_outbox_finish(result.outbox_id,result.claim_token,
