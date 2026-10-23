@@ -17,6 +17,12 @@ const destination={channel:'BALE',recipientRef:'b2222222-2222-4222-8222-22222222
 const rule={id:'licensed-usd-above',symbol:'USD_IRT_FREE',unit:'IRT_PER_USD',
  provider:'TestEntitledFeed',legs:[{type:'ABOVE',side:'SELL',threshold:105}]};
 const goodPermission={publicDisplay:true,derivedAlerts:true,historicalStorage:true};
+const sourceRights=async({provider,symbol,unit,side})=>({
+ origin:'TRUSTED_SERVER_CONTRACT_REGISTRY',verified:true,
+ provider,symbol,unit,side,publicDisplay:true,derivedAlerts:true,
+ historicalStorage:true,evidenceRef:'contract/test-feed-2026',
+ effectiveFrom:'2026-10-01T00:00:00Z',expiresAt:'2026-11-01T00:00:00Z'
+});
 const q=(i,price,permission=goodPermission)=>({
  symbol:rule.symbol,unit:rule.unit,provider:rule.provider,side:'SELL',
  timestamp:time(i),price,permission
@@ -46,7 +52,7 @@ function mockPg(){
  };
 }
 const invoke=(db,observation,opts={})=>evaluateAndPersistAlert({
- db,domain,principal:p,recipient:destination,rule,observation,now,
+ db,domain,sourceRights,principal:p,recipient:destination,rule,observation,now,
  gateOptions:{config:{recoverySamples:1,maxAgeMs:600000}},...opts
 });
 test('real PR33 modules: good -> spike quarantine -> next-tick confirmation -> one persisted alert',async()=>{
@@ -74,7 +80,7 @@ test('real PR33 data gate: stale, unlicensed and wrong quote side cannot enqueue
  ]){
   const db=mockPg();
   if(sample.permission===null){
-   await assert.rejects(()=>invoke(db,sample),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
+   await assert.rejects(()=>invoke(db,sample,{sourceRights:async()=>null}),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
    assert.equal(db.record,null);
   }else{
    const r=await invoke(db,sample);
@@ -86,4 +92,13 @@ test('real PR33 data gate: stale, unlicensed and wrong quote side cannot enqueue
  const db=mockPg();
  await assert.rejects(()=>invoke(db,{...q(1,120),side:'BUY'}),/exit side/);
  assert.equal(db.record,null);
+});
+
+test('real pinned engine refuses forged data rights without registry approval',async()=>{
+ const db=mockPg();
+ await assert.rejects(()=>invoke(db,q(1,110),{
+  sourceRights:async()=>null
+ }),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
+ assert.equal(db.record,null);
+ assert.equal(db.enqueue,0);
 });
