@@ -76,7 +76,13 @@ function engine({
  };
  return {db,domain,get triggers(){return triggers}};
 }
-const args=e=>({db:e.db,domain:e.domain,principal,recipient,rule,observation:quote,now:timestamp});
+const sourceRights=async({provider,symbol,unit,side})=>({
+ origin:'TRUSTED_SERVER_CONTRACT_REGISTRY',verified:true,
+ provider,symbol,unit,side,publicDisplay:true,derivedAlerts:true,
+ historicalStorage:true,evidenceRef:'contract/test-license-2026',
+ effectiveFrom:'2026-10-01T00:00:00Z',expiresAt:'2026-11-01T00:00:00Z'
+});
+const args=e=>({db:e.db,domain:e.domain,sourceRights,principal,recipient,rule,observation:quote,now:timestamp});
 
 test('valid trusted event is atomically enqueued exactly once',async()=>{
  const e=engine();
@@ -146,14 +152,40 @@ test('refuses inconsistent/malformed database responses',async()=>{
  await assert.rejects(()=>evaluateAndPersistAlert(args(e)),/CORRUPT_ALERT_STATE_RESULT/);
 });
 
-test('no historical-storage entitlement forbids ANY database read or write',async()=>{
- for(const permission of [null,{publicDisplay:true,derivedAlerts:true},
-   {publicDisplay:true,historicalStorage:true},
-   {derivedAlerts:true,historicalStorage:true}]){
-   const e=engine();
-   await assert.rejects(()=>evaluateAndPersistAlert({
-     ...args(e),observation:{...quote,permission}
-   }),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
-   assert.equal(e.db.calls.length,0);
+test('independent registry refuses missing/expired/incompatible rights before any database call',async()=>{
+ for(const bad of [
+  null,
+  {...await sourceRights({provider:rule.provider,symbol:rule.symbol,unit:rule.unit,side:'SELL'}),historicalStorage:false},
+  {...await sourceRights({provider:rule.provider,symbol:rule.symbol,unit:rule.unit,side:'SELL'}),expiresAt:'2026-10-20T00:00:00Z'},
+  {...await sourceRights({provider:rule.provider,symbol:rule.symbol,unit:rule.unit,side:'SELL'}),side:'BUY'},
+  {...await sourceRights({provider:rule.provider,symbol:rule.symbol,unit:rule.unit,side:'SELL'}),verified:false},
+  {...await sourceRights({provider:rule.provider,symbol:rule.symbol,unit:rule.unit,side:'SELL'}),evidenceRef:''}
+ ]){
+  const e=engine();
+  await assert.rejects(()=>evaluateAndPersistAlert({
+   ...args(e),observation:{...quote,permission:{publicDisplay:true,derivedAlerts:true,historicalStorage:true}},
+   sourceRights:async()=>bad
+  }),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
+  assert.equal(e.db.calls.length,0);
  }
+});
+test('caller-forged permission cannot replace an independently verified contract',async()=>{
+ const e=engine();
+ await assert.rejects(()=>evaluateAndPersistAlert({...args(e),
+  observation:{...quote,permission:{publicDisplay:true,derivedAlerts:true,historicalStorage:true}},
+  sourceRights:async()=>null
+ }),/PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED/);
+ assert.equal(e.db.calls.length,0);
+});
+test('caller-supplied permission flags are ignored when independent registry is entitled',async()=>{
+ const e=engine();
+ const r=await evaluateAndPersistAlert({...args(e),observation:{...quote,permission:null}});
+ assert.equal(r.outcome,'TRIGGERED_ENQUEUED');
+});
+test('registry lookup outage fails closed without leaking provider response or writing',async()=>{
+ const e=engine();
+ await assert.rejects(()=>evaluateAndPersistAlert({
+  ...args(e),sourceRights:async()=>{throw Error('sensitive upstream contract query details')}
+ }),/SOURCE_RIGHTS_REGISTRY_UNAVAILABLE/);
+ assert.equal(e.db.calls.length,0);
 });
