@@ -38,7 +38,8 @@
 
 - **Not production-integrated:** no trust-boundary-reviewed HTTP endpoint, authenticated user session plumbing, rights registry backed by provider contracts, recipient resolver, actual Bale send, worker cron schedule, PWA UI or deployment artifact.
 - **No guaranteed exactly-once delivery.** SQL CAS ensures no duplicate logical outbox event for this rule instance. An HTTP send can still fail ambiguously; PR #34 terminal UNKNOWN halts retries instead of promising delivery.
-- **No market-data rights assumed.** `observation.permission` is an attribute supplied by a TRUSTED server-side contract reviewer; a browser may not assert its own redisplay/storage rights. Unknown rights are a hard block.
+- **No market-data rights assumed.** A new mandatory `sourceRights` callback must resolve an **independent, trusted server-only contract registry** for the exact provider/symbol/unit/buy-sell side and quote timestamp. It must return authenticated evidence reference, start/expiry dates, and affirmative public display, derived-alert and historical-storage entitlements. The coordinator **ignores `observation.permission` supplied with the quote**, replacing it only after separate verification. Unavailable/expired/mismatched rights stop execution **before any alert-state SQL read or write**. A trusted registry implementation and any real licensed contracts DO NOT yet exist: this code cannot be activated for public data.
+- **Egress permit gate strengthened:** `alert_notification_egress_allowed` now refuses a lease whose `send_started_at` has not been set by the atomic `begin_egress` single-use permit. Tests check failure before consumption and success only after consumption. This addresses an authorization bypass through calling the Boolean check directly.
 - **No authorization grants on PostgreSQL functions or tables** were created. A future reviewed server principal and tenant-specific access policy are required before any production connection. SQL tests currently use a disposable owner role, NOT a production service role.
 - **State format:** `state.alert` follows PR #33 `stepAlert`; `state.gate` follows PR #33 `evaluateQuoteGate`. The gate stores price history as minimal quality context, hence all storage must be separately licensed.
 - **Three independent human/AI agents have not reviewed this PR.** GitHub CI jobs are evidence of tests, not evidence of independent agents.
@@ -62,6 +63,13 @@
 
 **Review process truth:** Functional, static/security and adversarial CI checks are separate automated jobs, but the required three independent AI/human review agents cannot be launched with the available Notion connection (`plan_required` on the Business plan). Do not assert reviewer approval or production completion.
 
+
+## Additional regression evidence (2026-10-23)
+
+- Unit tests reject fabricated or expired contract grants, wrong quote side or symbol, missing source evidence and registry network/service failure **without querying Postgres**.
+- The PR #35 pinned real PR #33 integration tests use synthetic, clearly labelled **test-only rights**. These are NOT actual permission to display or store data from Gheymat Online, TGJU or any other real provider.
+- A draft caller may not set `sourceRights=()=>({verified:true,...})` on a public endpoint: the callback must be server-owned and resolve auditable, legally signed entitlements. Until this exists, production must be fail-closed.
+- Independent functional/security/reviewer approval remains **تأییدنشده**; CI testing must not be reported as human or AI agent sign-off.
 
 ## Safe delivery and rollback
 
