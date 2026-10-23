@@ -41,9 +41,9 @@ function ensureEvent(event,rule,quote,gate,next){
    gate.accepted?.price!==quote.price)
    throw new Error('UNVERIFIED_EVENT_PROVENANCE');
 }
-function validateArgs({db,domain,principal,rule,recipient,observation,now}){
+function validateArgs({db,domain,sourceRights,principal,rule,recipient,observation,now}){
  if(typeof db?.query!=='function'||typeof domain?.evaluateQuoteGate!=='function'||
-    typeof domain?.stepAlert!=='function')throw new TypeError('trusted database/domain functions required');
+    typeof domain?.stepAlert!=='function'||typeof sourceRights!=='function')throw new TypeError('trusted database/domain functions required');
  if(principal?.kind!=='VERIFIED_SERVER_PRINCIPAL'||principal.verified!==true||
     !ID.test(principal.userId))
    throw new TypeError('verified server user required');
@@ -61,12 +61,6 @@ function validateArgs({db,domain,principal,rule,recipient,observation,now}){
     observation.symbol!==rule.symbol||observation.provider!==rule.provider||
     observation.unit!==rule.unit||observation.side!==rule.legs[0].side)
    throw new TypeError('observation must match trusted source, unit and exit side');
- // The persisted gate/high-water state contains historical provider prices.
- // A display/alert license alone is NOT a right to store this state in Neon.
- if(observation.permission?.publicDisplay!==true||
-    observation.permission?.derivedAlerts!==true||
-    observation.permission?.historicalStorage!==true)
-   throw new Error('PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED');
  if(typeof now!=='string'||!Number.isFinite(Date.parse(now)))
    throw new TypeError('valid server time required');
 }
@@ -76,14 +70,46 @@ function validateArgs({db,domain,principal,rule,recipient,observation,now}){
  * retries are allowed after STALE_REVISION to resolve Worker races.
  */
 export async function evaluateAndPersistAlert({
- db,domain,principal,rule,recipient,observation,now,
+ db,domain,sourceRights,principal,rule,recipient,observation,now,
  gateOptions={},maxAttempts=3
 }){
- validateArgs({db,domain,principal,rule,recipient,observation,now});
+ validateArgs({db,domain,sourceRights,principal,rule,recipient,observation,now});
  if(!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>5)
    throw new RangeError('maxAttempts');
+ // Entitlements MUST come from a separate, trusted server-side contract
+ // registry. Never accept observation.permission supplied by an API/browser
+ // as evidence of redisplay, alert creation or historical state storage.
+ let rights;
+ try {
+  rights=await sourceRights({
+   provider:rule.provider,symbol:rule.symbol,unit:rule.unit,
+   side:observation.side,timestamp:observation.timestamp,now
+  });
+ } catch {
+  throw new Error('SOURCE_RIGHTS_REGISTRY_UNAVAILABLE');
+ }
+ const granted=rights?.origin==='TRUSTED_SERVER_CONTRACT_REGISTRY' &&
+  rights.verified===true &&
+  rights.provider===rule.provider && rights.symbol===rule.symbol &&
+  rights.unit===rule.unit && rights.side===observation.side &&
+  rights.publicDisplay===true && rights.derivedAlerts===true &&
+  rights.historicalStorage===true &&
+  typeof rights.evidenceRef==='string' &&
+  /^[A-Za-z0-9:._/-]{8,256}$/.test(rights.evidenceRef) &&
+  typeof rights.effectiveFrom==='string' &&
+  typeof rights.expiresAt==='string';
+ const start=granted?Date.parse(rights.effectiveFrom):NaN;
+ const expiry=granted?Date.parse(rights.expiresAt):NaN;
+ const requested=Date.parse(now),observed=Date.parse(observation.timestamp);
+ if(!granted||!Number.isFinite(start)||!Number.isFinite(expiry)||
+    !Number.isFinite(observed)||start>observed||start>requested||
+    expiry<observed||expiry<requested||start>=expiry)
+  throw new Error('PRICE_STORAGE_OR_ALERT_RIGHTS_UNVERIFIED');
+ const licensedObservation={...observation,permission:{
+  publicDisplay:true,derivedAlerts:true,historicalStorage:true
+ }};
  const userId=principal.userId,ruleId=rule.id;
- const gateConfig={...gateOptions,nowMs:Date.parse(now)};
+ const gateConfig={...gateOptions,nowMs:requested};
  for(let attempt=0;attempt<maxAttempts;attempt++){
   const r=await db.query(sqlRead,[userId,ruleId]);
   if(!Array.isArray(r?.rows)||r.rows.length>1)
@@ -97,15 +123,15 @@ export async function evaluateAndPersistAlert({
   if(previousAlert?.phase==='TRIGGERED'||previousAlert?.phase==='NOTIFIED'||
      previousAlert?.phase==='CLOSED')
    return {outcome:'ALREADY_TERMINAL',revision,outboxId:null,reason:'NOT_REARMED'};
-  const evaluation=domain.evaluateQuoteGate(snapshot?.gate??null,observation,gateConfig);
+  const evaluation=domain.evaluateQuoteGate(snapshot?.gate??null,licensedObservation,gateConfig);
   if(!evaluation||typeof evaluation.status!=='string'||!evaluation.state)
    throw new Error('INVALID_DOMAIN_GATE');
-  const computed=domain.stepAlert(rule,previousAlert,observation,evaluation);
+  const computed=domain.stepAlert(rule,previousAlert,licensedObservation,evaluation);
   if(!computed||!computed.state||!Array.isArray(computed.events)||
     computed.events.length>1)
    throw new Error('INVALID_DOMAIN_EVALUATION');
   const event=computed.events[0]??null;
-  if(event)ensureEvent(event,rule,observation,evaluation,computed);
+  if(event)ensureEvent(event,rule,licensedObservation,evaluation,computed);
   // Suspensions and recovery are preserved durably, even with no alert event.
   if(!event&&computed.state.phase!=='ARMED')
    throw new Error('EVENTLESS_TERMINAL_TRANSITION');
