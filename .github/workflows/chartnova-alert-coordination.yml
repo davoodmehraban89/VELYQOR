@@ -4,6 +4,8 @@ on:
     paths:
       - 'db/migrations/0006_alert_runtime_atomic.sql'
       - 'db/tests/alert_runtime_invariants.sql'
+      - 'db/tests/alert_runtime_untrusted_role.sql'
+      - 'db/tests/alert_egress_verified_retry.sql'
       - 'packages/market-domain/src/alert-postgres-coordinator.mjs'
       - 'packages/market-domain/test/alert-postgres-coordinator.test.mjs'
       - 'scripts/check-alert-runtime-concurrency.mjs'
