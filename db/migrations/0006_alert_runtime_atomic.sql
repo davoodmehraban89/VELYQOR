@@ -284,6 +284,37 @@ $alert_claim$;
 ALTER TABLE public.notification_outbox
  ADD COLUMN send_started_at TIMESTAMPTZ;
 
+
+-- PR #34 explicitly permits bounded retry ONLY after a provider-confirmed
+-- REJECTED outcome. Such a delivery attempt may already have consumed its
+-- one-send permit. A *new* legitimate lease must obtain a *new* permit;
+-- otherwise the old send_started_at marker deadlocks all authorized retries.
+-- Expired/ambiguous/UNKNOWN sends NEVER become retry-eligible.
+CREATE FUNCTION public.alert_notification_reset_permit_for_verified_retry()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $retry_permit$
+BEGIN
+  IF OLD.status = 'FAILED' AND NEW.status = 'LEASED'
+    AND OLD.lease_token IS DISTINCT FROM NEW.lease_token
+    AND NEW.attempts > OLD.attempts
+  THEN
+    NEW.send_started_at := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$retry_permit$;
+
+CREATE TRIGGER notification_outbox_verified_retry_permit
+BEFORE UPDATE ON public.notification_outbox
+FOR EACH ROW
+EXECUTE FUNCTION public.alert_notification_reset_permit_for_verified_retry();
+
+REVOKE ALL ON FUNCTION public.alert_notification_reset_permit_for_verified_retry()
+ FROM PUBLIC;
+
 CREATE FUNCTION public.alert_notification_begin_egress(
   p_outbox_id UUID,
   p_claim_token UUID,
