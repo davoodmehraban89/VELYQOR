@@ -71,6 +71,19 @@
 - A draft caller may not set `sourceRights=()=>({verified:true,...})` on a public endpoint: the callback must be server-owned and resolve auditable, legally signed entitlements. Until this exists, production must be fail-closed.
 - Independent functional/security/reviewer approval remains **تأییدنشده**; CI testing must not be reported as human or AI agent sign-off.
 
+## 2026-10-23 — third-pass privilege and rejection-retry review
+
+Two independent security/functional defects were addressed **only in this unmerged Draft PR**:
+
+1. **PostgreSQL privilege validation.** Migration 0006 explicitly revokes PUBLIC execution, but earlier tests inspected ACL catalogs as the owner role rather than exercising the authorization boundary as an unprivileged actor. Added [`db/tests/alert_runtime_untrusted_role.sql`](../../db/tests/alert_runtime_untrusted_role.sql), which creates a disposable nonlogin role in a `velyqor_test` database only and verifies actual SELECT attempts on the outbox/rule-state/consent tables fail and all eight privileged functions deny EXECUTE. The entire fixture and role creation run under BEGIN/ROLLBACK. This proves default-deny for an ungranted role, **not** that a future production runtime role with custom grants is properly isolated.
+
+2. **One-send permit after *confirmed* provider rejection.** PR #34 explicitly permits a bounded retry after `notification_outbox_finish(..., 'REJECTED')`; PR #35's one-use `send_started_at` permit originally remained set and would prevent a legitimate second attempt forever. Added a narrowly scoped `BEFORE UPDATE` trigger `notification_outbox_verified_retry_permit` in migration 0006: it resets the prior permit **only** on `FAILED → LEASED` with a different token and an increased attempt count. `UNKNOWN`, expired or ambiguous attempts do **not** qualify. Added [`db/tests/alert_egress_verified_retry.sql`](../../db/tests/alert_egress_verified_retry.sql) verifying cooldown, new token, one permit per lease, original token denied, attempt ceiling, and zero retries after UNKNOWN.
+
+The [staging CI workflow](../../.github/workflows/chartnova-alert-coordination.yml) now includes both new SQL regression-test paths so test-only changes cannot bypass its PostgreSQL job. This is a **schema-only CI correction**, not a change to deployed Worker, Neon, user alerts, service authorization, bot tokens, paid services or external network calls.
+
+**Evidence:** Both SQL suites ran successfully on ephemeral PostgreSQL on GitHub Actions at initial code SHA `ffe3f65b9bbe98a1d2a026a9ee1dfb7237e32b30`; final-head checks must be verified again after this documentation commit. The underlying user-required three independent human/AI reviews and source licensing remain **تأییدنشده**.
+
+
 ## Safe delivery and rollback
 
 No production migration, Merge, Cloudflare deployment, Neon connection, user message, provider request or external cost was performed. Close this Draft PR to discard the proposal with no user data change. Before future release, the dependency order must be reconciled: #34 schema review, #33 domain engine review, #35 integration, then staging/real-user evidence, followed by separately approved merges and deployment. Do not apply migration `0005_navasan_private_daily_ohlc.sql`.
