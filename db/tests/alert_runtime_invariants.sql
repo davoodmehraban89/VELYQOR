@@ -144,9 +144,9 @@ BEGIN
   IF result.event_key <> 'consented-alert' OR result.claim_token IS NULL THEN
     RAISE EXCEPTION 'consented claimant did not receive authorized pending event';
   END IF;
-  IF NOT public.alert_notification_egress_allowed(
+  IF public.alert_notification_egress_allowed(
       result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '5 minutes 1 second') THEN
-    RAISE EXCEPTION 'valid leased and consenting recipient denied at egress';
+    RAISE EXCEPTION 'unconsumed send permit bypassed egress gate';
   END IF;
   IF public.alert_notification_begin_egress(
       result.outbox_id, result.claim_token, gen_random_uuid(),'BALE',
@@ -165,6 +165,10 @@ BEGIN
   IF public.alert_notification_begin_egress(
       result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '5 minutes 2 seconds') THEN
     RAISE EXCEPTION 'repeated send permit enabled duplicate outbound message';
+  END IF;
+  IF NOT public.alert_notification_egress_allowed(
+      result.outbox_id, result.claim_token, v_recipient,'BALE', t+interval '5 minutes 2 seconds') THEN
+    RAISE EXCEPTION 'single-use permit did not authorize legitimate egress';
   END IF;
   IF public.alert_notification_egress_allowed(
       result.outbox_id, gen_random_uuid(), v_recipient,'BALE', t+interval '5 minutes 1 second') THEN
