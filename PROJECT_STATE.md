@@ -1,5 +1,28 @@
 # VELYQOR Project State
 
+## 2026-10-23 — fail-closed authorization review of Draft PR #35
+
+- **Corrected egress authorization:** `alert_notification_egress_allowed` now requires the database row's `send_started_at` to be set by the atomic **single-use** `alert_notification_begin_egress` permit, so an unconsumed lease cannot be interpreted as authorization to send. PostgreSQL regressions cover denied before permit, permitted after first consumption, denied repeated permits and consent revocation.
+- **Corrected rights provenance:** the server-only `evaluateAndPersistAlert` no longer trusts `observation.permission` as proof of a vendor contract. A mandatory, separately injected trusted `sourceRights` callback must confirm exact provider/symbol/unit/side, dated evidence reference, effective/expiry dates, and **public display + derived alerts + historical storage** entitlements. Missing, expired, mismatched or unreachable registry fails closed **before any PostgreSQL state query**. Synthetic test grants are NOT legal permissions for any live source.
+- Both changes are **Draft only** in PR #35, with negative/mock and exact pinned PR #33 tests. No real contract registry, authenticated runtime DB role or approved outbound bot credentials exist. Production alert delivery remains **تأییدنشده**.
+- PR #33 (domain), #34 (outbox) and #35 (integration) remain unmerged. No Cloudflare or Neon production operation authorized or performed by this security review. **Cloudflare connector is not currently available to independently reconfirm live Worker status**; prior v26 observation is historical.
+
+---
+
+## 2026-10-22 — stacked rule-state → durable outbox bridge (Draft PR #35)
+
+- [Draft PR #35](https://github.com/davoodmehraban89/VELYQOR/pull/35) is based **on unmerged PR #34**, not on production or `main`. It introduces `0006_alert_runtime_atomic.sql`, versioned per-user alert state, opaque recipient consent proof and one PostgreSQL CAS function committing a trigger plus outbox entry atomically.
+- The new `alert-postgres-coordinator.mjs` bridges PR #33's **actual pure data-quality gate and alert engine** to PR #34's PostgreSQL contract with source/instrument/BUY/SELL identity validation, non-advisory labels and bounded retry. **Historical data storage permission is mandatory**; public display/alert rights alone are insufficient for persisting trailing/price state.
+- Independent disposable PostgreSQL tests check revoked/missing consent, stale revision, suspended quality data, exactly one event after concurrent claims and no public SQL role grants. GitHub CI separately checks source-pinned PR #33 modules at immutable commit `52ebe040d661d67d447d20afe5f49769ec7a095b`.
+- An additional claim-time opt-in gate (`alert_notification_claim_consented`) refuses revoked recipients, terminally suppresses unsent revoked entries and scans at most 16 pending rows to prevent one revoked user starving others. **A future sender must recheck consent immediately before outbound HTTP**, and least-privilege DB roles remain unimplemented.
+- Additional review-only safety checks: a single-use PostgreSQL `send_started_at` permit prevents parallel duplicate sends under one claim, `alert_notification_egress_allowed` rechecks consent at the final network boundary, and `leased-bale-dispatch.mjs` requires a trusted opaque recipient resolver and binds the destination/channel in SQL. CI tests the **real pinned PR #33 Bale adapter** exclusively with a mock transport and checks two concurrent PostgreSQL send-permit attempts. No real delivery, secret, or third-party account was used.
+- Live Neon, Cloudflare, market providers and any real Bale recipient **untouched**. Migration `0005_navasan_private_daily_ohlc.sql` remains blocked and untouched. No Merge, Deploy, secret access, paid subscription, recipient message or real-money trade executed.
+- **Still not complete**: actual server-side authentication, least-privilege service DB role, source rights contracts, private recipient registry and delivery, device-specific v26/v27 incident, cross-PR reconciliation and independent human/AI security review. Three CI perspectives are not three independent agents.
+- [Implementation/evidence and release gates](docs/operations/chartnova-alert-runtime-staging-2026-10-22.md).
+
+---
+
+
 ## 2026-10-22 — Atomic notification outbox review only, Draft PR #34
 
 - [Draft PR #34](https://github.com/davoodmehraban89/VELYQOR/pull/34) starts **independently from \`main\` at \`4649149b1f920aecbe4c26597983d9bb35d90427\`**. It provides proposed \`db/migrations/0004_notification_outbox.sql\`, a SQL invariant test and an **actual two-client PostgreSQL race test** in an isolated GitHub CI job. **This is NOT a live database migration or deployed feature.**
