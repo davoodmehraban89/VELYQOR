@@ -1,5 +1,14 @@
 # VELYQOR Project State
 
+## 2026-10-23 — fail-closed authorization review of Draft PR #35
+
+- **Corrected egress authorization:** `alert_notification_egress_allowed` now requires the database row's `send_started_at` to be set by the atomic **single-use** `alert_notification_begin_egress` permit, so an unconsumed lease cannot be interpreted as authorization to send. PostgreSQL regressions cover denied before permit, permitted after first consumption, denied repeated permits and consent revocation.
+- **Corrected rights provenance:** the server-only `evaluateAndPersistAlert` no longer trusts `observation.permission` as proof of a vendor contract. A mandatory, separately injected trusted `sourceRights` callback must confirm exact provider/symbol/unit/side, dated evidence reference, effective/expiry dates, and **public display + derived alerts + historical storage** entitlements. Missing, expired, mismatched or unreachable registry fails closed **before any PostgreSQL state query**. Synthetic test grants are NOT legal permissions for any live source.
+- Both changes are **Draft only** in PR #35, with negative/mock and exact pinned PR #33 tests. No real contract registry, authenticated runtime DB role or approved outbound bot credentials exist. Production alert delivery remains **تأییدنشده**.
+- PR #33 (domain), #34 (outbox) and #35 (integration) remain unmerged. No Cloudflare or Neon production operation authorized or performed by this security review. **Cloudflare connector is not currently available to independently reconfirm live Worker status**; prior v26 observation is historical.
+
+---
+
 ## 2026-10-22 — stacked rule-state → durable outbox bridge (Draft PR #35)
 
 - [Draft PR #35](https://github.com/davoodmehraban89/VELYQOR/pull/35) is based **on unmerged PR #34**, not on production or `main`. It introduces `0006_alert_runtime_atomic.sql`, versioned per-user alert state, opaque recipient consent proof and one PostgreSQL CAS function committing a trigger plus outbox entry atomically.
