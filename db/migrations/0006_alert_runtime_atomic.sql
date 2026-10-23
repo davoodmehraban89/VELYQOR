@@ -365,6 +365,8 @@ BEGIN
   WHERE o.id = p_outbox_id AND o.lease_token = p_claim_token
     AND o.recipient_ref = p_recipient_ref AND o.channel = p_channel
     AND o.status = 'LEASED'
+    AND o.send_started_at IS NOT NULL
+    AND o.send_started_at <= p_at
     AND o.leased_at <= p_at AND o.lease_until > p_at
     AND c.consented_at <= p_at AND c.revoked_at IS NULL
   FOR SHARE OF c;
